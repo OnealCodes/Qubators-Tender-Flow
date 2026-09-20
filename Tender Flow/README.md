@@ -7,7 +7,7 @@ AI-Powered Tender & Bid Management Platform.
 **Working product name:** TenderFlow
 **Product type:** B2B SaaS
 **Initial market:** Oil & Gas companies and service providers in Nigeria
-**Spec source:** `Docs/PRD for TenderFlow.md`
+**Spec source:** `PRD for TenderFlow.md` (in this folder)
 
 ---
 
@@ -84,9 +84,8 @@ Key specified capabilities:
 
 What exists in this repo today:
 
-- `Docs/PRD for TenderFlow.md` — full product requirements (30 sections, MVP scope, end-to-end workflow example)
-- `French game/PRD_Oneal_Conjugue.md` — separate unrelated PRD for a French conjugation game, kept in this folder but not part of TenderFlow
-- This `README.md`
+- `Tender Flow/PRD for TenderFlow.md` — full product requirements (30 sections, MVP scope, end-to-end workflow example)
+- `Tender Flow/README.md` — this file
 
 What does **not** exist yet:
 
@@ -126,11 +125,10 @@ Tender templates, tender history / institutional memory, reuse from previous bid
 
 ```text
 .
-├── Docs/
-│   └── PRD for TenderFlow.md
-├── French game/
-│   └── PRD_Oneal_Conjugue.md
-└── README.md
+├── Tender Flow/
+│   ├── PRD for TenderFlow.md
+│   └── README.md
+└── .gitignore  # ignores unrelated local `French game/` folder
 ```
 
 ## Running the Project Locally
@@ -143,8 +141,8 @@ git clone https://github.com/OnealCodes/Qubators-Tender-Flow.git
 Set-Location -LiteralPath "Qubators-Tender-Flow"
 
 # 2. Read the spec
-notepad "Docs\PRD for TenderFlow.md"
-notepad "README.md"
+notepad "Tender Flow\PRD for TenderFlow.md"
+notepad "Tender Flow\README.md"
 
 # 3. Check git status
 git status
