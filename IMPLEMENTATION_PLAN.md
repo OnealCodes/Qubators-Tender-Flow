@@ -211,6 +211,8 @@ PRD §14–§17.
 - QC panel UI mirroring §15 example. Human override with reason required.
 - Eval: build 20-case QC suite (missing year, wrong entity, expired cert, altered template). Track false-compliant rate — must be ~0; prefer Review over false-Compliant.
 
+**Status 2026-09-27:** built. Rules engine v1 (`lib/qc.ts`): document-type, required-years, expiry, company, signatures, template, completeness checks → compliant/review/non-compliant/not-reviewed with per-check evidence + action; uncertainty always resolves to review, never false-compliant. Risk engine refines requirement risk with quoted reasons on every run. `qc_results` + `qc_reviews` tables (migration `005`); run-one/history/run-all/override APIs (`lib/qc-store.ts` resolves latest evidence parsed from PDF, else accepted library link, else none); QC route rebuilt with verdict counts, per-item checks, re-run, and override requiring a reason (effective verdict shown). Eval `scripts/qc-eval.mjs`: **20/20, false-compliant 0**. Verified live: run-all over 9 items, NUPRC library verdict corrected to compliant after title-only tag fix, override + reason-required rejection enforced.
+
 ---
 
 ## Phase 8 — Readiness + Final Checklist + Compilation (MVP 11–12 + §20 partial)

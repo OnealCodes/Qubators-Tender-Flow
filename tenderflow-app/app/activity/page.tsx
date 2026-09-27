@@ -23,6 +23,8 @@ const ACTION_LABEL: Record<string, string> = {
   status: "changed status",
   match_accept: "accepted a library match",
   match_reject: "rejected a library match",
+  qc: "ran QC",
+  qc_review: "overrode a QC verdict",
 };
 
 export default function ActivityPage() {
