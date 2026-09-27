@@ -10,6 +10,16 @@
 
 ---
 
+> **Evaluator Note — Database and Cost Decision (2026-09-26, owner-approved)**
+>
+> * **PostgreSQL was selected** as the database for TenderFlow from the beginning.
+> * **PostgreSQL will run locally using Docker** when implementation reaches the database setup phase. No Supabase or other hosted database will be used for the current stage. The application and database remain local; deployment is not part of the current stage.
+> * **Why PostgreSQL instead of SQLite:** TenderFlow will hold strongly related data (tenders, requirements, sub-items, assignments, documents, QC results, users, statuses, activity history, document matching). Using the production-suitable relational database from the start avoids a later SQLite → PostgreSQL migration.
+> * **Free/open-source and low-cost priority:** the project prefers free/open-source tools and local development wherever practical. File storage for MVP is a local project `uploads/` folder. Cloudflare R2 may only be evaluated later as a low-cost option if required.
+> * **No unnecessary paid services:** paid accounts, subscriptions, or billable cloud resources will not be introduced without explicit owner approval.
+
+---
+
 # **1\. Product Vision**
 
 Create a platform that transforms the tendering process from a largely manual, document-reading exercise into a **structured, collaborative and quality-controlled workflow**.
