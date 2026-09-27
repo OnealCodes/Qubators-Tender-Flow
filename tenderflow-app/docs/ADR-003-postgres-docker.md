@@ -28,6 +28,7 @@ access is enforced in the app first, Postgres RLS hardened before any pilot.
   hosting spend, backups via volume snapshots.
 
 ## Status note
-Docker Desktop is not installed on this machine yet, so the database has
-not been started. The compose file is the contract; `docker compose up`
-happens at the database setup phase.
+Verified live 2026-09-27: Docker Desktop installed, `tenderflow-db`
+(container, `pgvector/pgvector:0.8.0-pg16`) healthy, `db/001-init.sql`
+applied (companies, tenders, tender_pages), and the upload flow persists
+with `backend: postgres`. Keep Docker Desktop running while developing.

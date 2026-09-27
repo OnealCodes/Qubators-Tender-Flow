@@ -149,7 +149,7 @@ Cost principle: prefer free/open-source + local. Do not create paid accounts, su
 
 **Done when:** `docs/ADR-*.md` merged, ERD reviewed, Postgres Docker compose verified locally, AI JSON schemas frozen for v1.
 
-**Status 2026-09-27:** ADRs 001–004 recorded in `tenderflow-app/docs/`, `docker-compose.yml` (local pgvector Postgres) added, `extract/v1` + `qc/v1` contracts frozen in `tenderflow-app/lib/ai-schemas.ts`. Compose not yet started — Docker Desktop install is pending (manual step at database setup phase).
+**Status 2026-09-27:** ADRs 001–004 recorded in `tenderflow-app/docs/`, `docker-compose.yml` (local pgvector Postgres) added, `extract/v1` + `qc/v1` contracts frozen in `tenderflow-app/lib/ai-schemas.ts`. **Verified live:** Docker Desktop installed, `tenderflow-db` healthy, migration `db/001-init.sql` applied, upload test persists to Postgres (`backend: postgres`).
 
 ---
 
