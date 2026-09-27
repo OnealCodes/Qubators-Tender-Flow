@@ -21,6 +21,8 @@ const ACTION_LABEL: Record<string, string> = {
   issue: "flagged an issue",
   clarification: "requested clarification",
   status: "changed status",
+  match_accept: "accepted a library match",
+  match_reject: "rejected a library match",
 };
 
 export default function ActivityPage() {

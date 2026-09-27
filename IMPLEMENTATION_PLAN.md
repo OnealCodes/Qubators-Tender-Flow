@@ -199,6 +199,8 @@ PRD §9–§11.
 - Expiry engine: 🔴 expires before submission, 🟠 expires during contract, dashboard table. Cron daily.
 - Eval: matching precision on 15-doc fixture; never auto-approve.
 
+**Status 2026-09-27:** built. `library_docs` + `evidence_links` tables (migration `004`); library CRUD with file upload, dedup-by-name+entity versioning, expiry edit, delete (`/api/library`); rule-based matcher v1 (title-weighted entity tags + term overlap, embeddings deferred) with confidence + reasons + expiry badge (`lib/matching.ts`); Accept/Reject recorded with human + timestamp and activity-logged, never auto-approved (`/api/links`); expiry engine red/amber/green/grey vs submission date (`/api/.../expiry` dashboard). Documents route rebuilt: upload form, library table, match suggestions with Use/Reject, expiry dashboard. Verified on Postgres with 6 docs: exact NUPRC/NOGIC high matches, audited-accounts false positives fixed by title weighting, dedup → v2, accept excludes deliverable, reject clears it, expiry 1 red / 1 amber / 2 green.
+
 ---
 
 ## Phase 7 — Intelligent QC + Risk Engine (MVP 10, differentiator)

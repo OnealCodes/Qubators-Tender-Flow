@@ -162,7 +162,8 @@ Postgres via Docker comes at the database setup phase (Docker Desktop install pe
 - [x] Phase 3: Tender Intake + Overview (upload → parsed pages → overview with source links; heuristic extraction, Postgres-ready local store)
 - [x] Phase 4: Extraction + Responsibility Matrix (versioned runs, human-edits-win, filters, inline edit)
 - [x] Phase 5: Assignment + Collection + Collaboration (suggested owners, My Tasks, evidence upload, reminders)
-- [ ] Phase 6: Library + Matching + Expiry (reusable docs, match suggestions, expiry engine)
+- [x] Phase 6: Library + Matching + Expiry (reusable docs, match suggestions, expiry engine)
+- [ ] Phase 7: Intelligent QC + Risk Engine (per-deliverable checks, critical-rule detection)
 
 ## License
 
