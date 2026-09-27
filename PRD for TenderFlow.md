@@ -28,6 +28,14 @@
 
 ---
 
+> **Evaluator Note — Design Theme Update (2026-09-27, design.html preview only)**
+>
+> * **What was requested:** style the `design.html` preview with the colours and background feel of the company website (deep navy, gold accent, dark ocean-style hero band).
+> * **What was changed in `design.html`:** navy deepened to `#0A2C4E`/`#071F36` with subtle circular pattern, accent switched from teal to gold `#F5B301`, primary buttons use primary blue `#1D4C8D`, new dark gradient hero band behind the tender title with gold eyebrow bar and quote marks. QC green/amber/red semantics unchanged. Preview remains self-contained with demonstration data only.
+> * **Branding correction:** all visible DexterPro wording was removed from the preview (sidebar subtitle, palette heading, swatch label renamed to Primary Blue). The preview keeps the colour inspiration but carries TenderFlow branding only.
+
+---
+
 # **1\. Product Vision**
 
 Create a platform that transforms the tendering process from a largely manual, document-reading exercise into a **structured, collaborative and quality-controlled workflow**.
