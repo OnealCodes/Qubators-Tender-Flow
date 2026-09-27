@@ -162,6 +162,8 @@ PRD §5. Upload → parsed pages → overview fields + source links.
 - Overview screen + Source drawer. Edit + re-run. Activity log.
 - Eval: 3 golden ITTs, check deadline extraction accuracy ≥95%, no hallucinated dates (must cite page).
 
+**Status 2026-09-27:** built with local heuristic extraction (no model calls yet). `POST /api/tenders` accepts PDF ≤200 MB, stores the original in `uploads/<id>/`, parses per-page text with pdfjs-dist (scanned PDFs flagged, unreadable files rejected 422), extracts overview fields with page citations, persists via Postgres-when-reachable else local JSON (`lib/tenders.ts`), migration in `db/001-init.sql`. Overview route has drag-drop upload, tender list, and a source drawer showing extracted page text. Verified with a generated 2-page Chevron-like fixture: reference, deadlines, meeting and buckets all correct with page numbers.
+
 ---
 
 ## Phase 4 — Extraction + Responsibility Matrix (MVP 3–5, heart of product)
