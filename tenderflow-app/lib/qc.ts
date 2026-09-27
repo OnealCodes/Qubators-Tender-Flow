@@ -193,7 +193,7 @@ export function refineRisk(title: string, description?: string | null): RiskAsse
   if (/if (applicable|any|required)|where applicable|where relevant/i.test(text)) {
     return { risk: "conditional", reason: "Applies only under stated conditions — excluded from missing counts." };
   }
-  const crit = quote(/[^.]{0,60}disqualif[^.]{0,40}|[^.]{0,60}no changes?[^.]{0,40}|[^.]{0,40}reject[^.]{0,40}/i);
+  const crit = quote(/[^.]{0,60}disqualif[^.]{0,40}|[^.]{0,60}invalidat[^.]{0,40}|fatal flaw|will not be considered|will not be evaluated|shall be rejected|will be rejected|no changes? (to|of)[^.]{0,40}|no alteration/i);
   if (crit) return { risk: "critical", reason: `${crit} Failure here can reject the bid.` };
   if (/\bmust\b|\bshall\b|mandatory|required|compulsory/i.test(text)) {
     return { risk: "mandatory", reason: "Stated with must/shall/required wording." };
