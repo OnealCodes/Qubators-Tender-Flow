@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TenderFlow — Tender Workspace Preview</title>
+<style>
+:root{
+  --navy:#0F2A44; --navy-2:#0B1E33; --teal:#0E9F8A; --teal-dark:#0B7E6E;
+  --bg:#F6F7F9; --surface:#FFFFFF; --border:#E2E8F0; --text:#111827; --muted:#5B6472;
+  --green:#16A34A; --green-bg:#E7F6EC; --amber:#D97706; --amber-bg:#FDF1DE;
+  --red:#DC2626; --red-bg:#FDECEC; --neutral:#9CA3AF; --neutral-bg:#EEF1F4;
+  --purple:#7C3AED; --purple-bg:#EFE7FD; --blue:#2563EB; --blue-bg:#E6EEFD;
+  --radius:10px; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55}
+a{color:var(--teal-dark)}
+.app{display:flex;min-height:100vh}
+/* Sidebar */
+.sidebar{width:248px;background:var(--navy);color:#DCE5EF;padding:20px 14px;display:flex;flex-direction:column;gap:18px;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:36px;height:36px;border-radius:9px;background:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:18px}
+.brand-name{font-weight:800;font-size:18px;color:#fff;letter-spacing:.2px}
+.brand-sub{font-size:12px;color:#9FB2C8;margin-top:-4px}
+.nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.nav button{background:transparent;border:0;color:#C7D3E2;text-align:left;padding:10px 12px;border-radius:8px;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.nav button.active,.nav button:hover{background:#1A3A5C;color:#fff}
+.nav .count{background:#24445F;border-radius:20px;padding:1px 8px;font-size:12px}
+.side-card{background:#132E4C;border:1px solid #21405F;border-radius:var(--radius);padding:12px}
+.side-card h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#9FB2C8}
+.swatches{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.swatch{border-radius:8px;padding:8px;font-size:11px;color:#fff}
+.swatch span{display:block;font-family:var(--mono);font-size:10px;opacity:.9}
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 22px;display:flex;gap:12px;align-items:center;position:sticky;top:0;z-index:5}
+.search{flex:1;max-width:460px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:9px 12px;background:#fff}
+.search input{border:0;outline:0;flex:1;font-size:14px}
+.btn{border:0;border-radius:8px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-primary:hover{background:var(--teal-dark)}
+.btn-ghost{background:#fff;border:1px solid var(--border);color:var(--navy)}
+.deadline{margin-left:auto;font-size:13px;color:var(--muted);white-space:nowrap}
+.deadline strong{color:var(--red)}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.content{padding:22px;max-width:1240px;width:100%;margin:0 auto}
+.demo-banner{background:#FFF8E6;border:1px solid #F0D489;color:#6B4E00;border-radius:var(--radius);padding:10px 14px;font-size:13px;margin-bottom:16px}
+h1{font-size:24px;margin:0}
+.meta{color:var(--muted);font-size:13px;margin:6px 0 16px}
+.meta code{font-family:var(--mono);background:#fff;border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:12px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.card .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.card .value{font-size:26px;font-weight:800;margin:4px 0}
+.card .sub{font-size:13px;color:var(--muted)}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--border);margin:6px 0 14px;flex-wrap:wrap}
+.tabs button{border:0;background:transparent;padding:10px 12px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+.tabs button.active{color:var(--navy);border-bottom-color:var(--teal)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.panel-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.panel-head h2{font-size:16px;margin:0}
+.panel-head .hint{font-size:13px;color:var(--muted)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:14.5px;min-width:960px}
+thead th{position:sticky;top:0;background:#0B1E33;color:#fff;text-align:left;padding:13px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.25);z-index:2}
+tbody td{padding:14px;border-top:1px solid #D7DEE7;vertical-align:top;line-height:1.6}
+tbody tr.parent td{background:#fff;border-top:2px solid #CBD5E1}
+tbody tr.sub td{background:#F4F6F8;border-top:1px solid var(--border)}
+tbody tr.parent:hover td{background:#EAF4F1}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:5px 11px;font-size:12.5px;font-weight:800;white-space:nowrap;border:1.5px solid transparent;letter-spacing:.01em}
+.req-title{font-weight:800;font-size:14.5px;letter-spacing:.01em}
+.req-sub{font-size:13px;color:#4B5563}
+.b-green{background:var(--green-bg);color:#0F6B2E;border-color:#B9E3C4}
+.b-amber{background:var(--amber-bg);color:#8A4B00;border-color:#F2D3A0}
+.b-red{background:var(--red-bg);color:#9B1C1C;border-color:#F3B8B8}
+.b-grey{background:var(--neutral-bg);color:#4B5563;border-color:#D3D8DE}
+.b-purple{background:var(--purple-bg);color:#5B21B6;border-color:#D3C2F8}
+.b-blue{background:var(--blue-bg);color:#1D4ED8;border-color:#B9CCF5}
+.mono{font-family:var(--mono);font-size:12px;background:#F1F5F9;border:1px solid var(--border);border-radius:6px;padding:2px 6px;white-space:nowrap}
+.grid-2{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+.qc-item{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px dashed var(--border);font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.type-legend{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.footer-note{font-size:12px;color:var(--muted);margin:14px 2px 30px}
+@media(max-width:960px){.sidebar{display:none}.cards{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}}
+:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" aria-label="Primary">
+    <div class="brand"><div class="brand-mark">T</div><div><div class="brand-name">TenderFlow</div><div class="brand-sub">Tender Workspace</div></div></div>
+    <nav class="nav">
+      <button class="active">Tenders <span class="count">3</span></button>
+      <button>Library <span class="count">48</span></button>
+      <button>Expiry <span class="count">2</span></button>
+      <button>Team <span class="count">9</span></button>
+      <button>Settings</button>
+    </nav>
+    <div class="side-card"><h4>Colour palette</h4><div class="swatches">
+      <div class="swatch" style="background:#0F2A44">Navy<span>#0F2A44</span></div>
+      <div class="swatch" style="background:#0E9F8A">Teal<span>#0E9F8A</span></div>
+      <div class="swatch" style="background:#16A34A">Compliant<span>#16A34A</span></div>
+      <div class="swatch" style="background:#D97706">Review<span>#D97706</span></div>
+      <div class="swatch" style="background:#DC2626">Risk<span>#DC2626</span></div>
+      <div class="swatch" style="background:#64748B">Slate<span>#64748B</span></div>
+    </div></div>
+    <div class="side-card"><h4>Typography</h4><div style="font-size:13px">UI: System / Inter<br><span style="font-family:var(--mono);font-size:12px">Refs: Plex Mono / monospace</span></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="search" role="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search requirements, documents, owners…" aria-label="Search requirements"></div>
+      <button class="btn btn-ghost" type="button">Final review</button>
+      <button class="btn btn-primary" type="button">+ Upload tender</button>
+      <div class="deadline">Submission in <strong>24 days</strong> · 20 Jul 2026</div>
+      <div class="avatar" title="Bid Manager">BM</div>
+    </div>
+    <div class="content">
+      <div class="demo-banner"><strong>Design preview — demonstration data only.</strong> This standalone <span style="font-family:var(--mono)">design.html</span> shows the planned look and feel. It is not the working application; no backend, database, or AI is implemented here.</div>
+      <h1>Chevron — Provision of Cementing Products and Services</h1>
+      <div class="meta">Client: <strong>Chevron</strong> · Ref: <code>CHEV-CEM-2026-041</code> · Clarification meeting: 02 Jul 2026 · Format: Technical + Commercial, PDF + signed forms</div>
+      <div class="cards">
+        <div class="card"><div class="label">Readiness</div><div class="value">72%</div><div class="sub">🟢 52 · 🟡 9 · 🔴 4 · ⚪ 13 outstanding</div></div>
+        <div class="card"><div class="label">Critical issues</div><div class="value" style="color:var(--red)">4</div><div class="sub">2 missing years · 1 expiring cert · 1 template rule</div></div>
+        <div class="card"><div class="label">Documents</div><div class="value">31 / 44</div><div class="sub">Library matches: 12 accepted · 3 rejected</div></div>
+        <div class="card"><div class="label">Assignments</div><div class="value">9 owners</div><div class="sub">2 overdue · next due 14 Jul (HSE)</div></div>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Workspace">
+        <button class="active">Matrix</button><button>Overview</button><button>Documents</button><button>Assignments</button><button>QC</button><button>Checklist</button><button>Activity</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Responsibility matrix</h2><span class="hint">Parent requirement → deliverables. Click a parent row to expand. Use search to filter.</span><span style="margin-left:auto"></span><span class="badge b-red">● Critical 4</span> <span class="badge b-blue">● Mandatory 11</span> <span class="badge b-purple">● Conditional 2</span></div>
+        <div class="table-wrap"><table id="matrix" aria-label="Requirements matrix">
+          <thead><tr><th>Section</th><th>Requirement / Deliverables</th><th>Owner</th><th>Due</th><th>Status</th><th>QC</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr class="parent" data-group="g1"><td><span class="badge b-purple">Nigerian Content</span></td><td><div class="req-title">▾ Nigerian ownership and registration</div><div class="req-sub">4 deliverables · owner Bisola · conditional logic applies</div></td><td>Bisola</td><td>15 Jul</td><td><span class="badge b-amber">◐ In progress</span></td><td><span class="badge b-amber">▲ Review</span></td><td><span class="mono">Sec 2 · p.14</span></td></tr>
+            <tr class="sub" data-parent="g1"><td></td><td>CO2 certificate <span class="req-sub">— document</span></td><td>Bisola</td><td>15 Jul</td><td><span class="badge b-green">● Received</span></td><td><span class="badge b-green">● Appears compliant</span></td><td><span class="mono">Sec 2.1</span></td></tr>
+            <tr class="sub" data-parent="g1"><td></td><td>CO7 certificate <span class="req-sub">— document</span></td><td>Bisola</td><td>15 Jul</td><td><span class="badge b-green">● Received</span></td><td><span class="badge b-green">● Appears compliant</span></td><td><span class="mono">Sec 2.1</span></td></tr>
+            <tr class="sub" data-parent="g1"><td></td><td>NOGIC JQS registration <span class="req-sub">— evidence</span></td><td>Bisola</td><td>15 Jul</td><td><span class="badge b-amber">◐ In progress</span></td><td><span class="badge b-grey">○ Not reviewed</span></td><td><span class="mono">Sec 2.2</span></td></tr>
+            <tr class="sub" data-parent="g1"><td></td><td>NUPRC certificate <span class="req-sub">— expires 31 Dec 2026</span></td><td>Bisola</td><td>15 Jul</td><td><span class="badge b-green">● Received</span></td><td><span class="badge b-amber">▲ Review</span></td><td><span class="mono">Sec 2.3</span></td></tr>
+            <tr class="parent" data-group="g2"><td><span class="badge b-blue">Financial</span></td><td><div class="req-title">▾ Audited accounts (3 years)</div><div class="req-sub">2022, 2023, 2024 · Finance · template + years checked</div></td><td>Finance / Olabanji</td><td>15 Jul</td><td><span class="badge b-amber">◐ In progress</span></td><td><span class="badge b-red">■ Potential issue</span></td><td><span class="mono">Sec 3 · p.22</span></td></tr>
+            <tr class="sub" data-parent="g2"><td></td><td>2022 audited accounts</td><td>Finance</td><td>15 Jul</td><td><span class="badge b-green">● Received</span></td><td><span class="badge b-green">● Appears compliant</span></td><td><span class="mono">Sec 3.1</span></td></tr>
+            <tr class="sub" data-parent="g2"><td></td><td>2023 audited accounts</td><td>Finance</td><td>15 Jul</td><td><span class="badge b-green">● Received</span></td><td><span class="badge b-green">● Appears compliant</span></td><td><span class="mono">Sec 3.1</span></td></tr>
+            <tr class="sub" data-parent="g2"><td></td><td>2024 audited accounts <span class="req-sub">— missing</span></td><td>Finance</td><td>15 Jul</td><td><span class="badge b-grey">○ Outstanding</span></td><td><span class="badge b-red">■ Potential issue</span></td><td><span class="mono">Sec 3.1</span></td></tr>
+            <tr><td><span class="badge b-green">HSE</span></td><td><div class="req-title">Safety programme + JHA</div><div class="req-sub">Policy, programme, job hazard analysis</div></td><td>HSE</td><td>14 Jul</td><td><span class="badge b-grey">○ Pending</span></td><td><span class="badge b-grey">○ Not reviewed</span></td><td><span class="mono">HSE · p.31</span></td></tr>
+            <tr><td><span class="badge b-blue">Personnel</span></td><td><div class="req-title">Key personnel + organogram + CVs</div><div class="req-sub">Operations · 6 CVs expected</div></td><td>Operations</td><td>15 Jul</td><td><span class="badge b-green">● Received</span></td><td><span class="badge b-amber">▲ Review</span></td><td><span class="mono">Sec 4 · p.38</span></td></tr>
+            <tr><td><span class="badge b-red">Commercial</span></td><td><div class="req-title">Quote ALL items — disqualification risk</div><div class="req-sub">Critical rule: failure to quote all items leads to disqualification</div></td><td>Commercial</td><td>18 Jul</td><td><span class="badge b-amber">◐ In progress</span></td><td><span class="badge b-amber">▲ Review</span></td><td><span class="mono">Sec 8 · p.52</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="grid-2">
+        <div class="panel"><div class="panel-head"><h2>QC example — Audited Accounts.pdf</h2><span class="badge b-red">■ Potential non-compliance</span></div><div style="padding:6px 16px 14px">
+          <div class="qc-item"><span class="dot" style="background:var(--green)"></span><span>Document appears to be an audited financial statement.</span></div>
+          <div class="qc-item"><span class="dot" style="background:var(--green)"></span><span>Company name appears to match bidding entity.</span></div>
+          <div class="qc-item"><span class="dot" style="background:var(--green)"></span><span>2022 accounts found.</span></div>
+          <div class="qc-item"><span class="dot" style="background:var(--green)"></span><span>2023 accounts found.</span></div>
+          <div class="qc-item"><span class="dot" style="background:var(--red)"></span><span><strong>2024 accounts not found</strong> — provide missing 2024 accounts before submission.</span></div>
+          <div class="type-legend" style="margin-top:10px"><span>● Appears compliant</span><span>▲ Review required</span><span>■ Potential non-compliance</span><span>○ Not reviewed</span></div>
+        </div></div>
+        <div class="panel"><div class="panel-head"><h2>Assignments + activity</h2></div><div style="padding:6px 16px 14px;font-size:14px">
+          <div><strong>Oluchi — 8 items:</strong> Insurance (Pending) · Parent Guarantee (In progress) · Community Plan (Received)</div>
+          <div style="margin-top:8px;color:var(--muted)">Reminder: 3 requirements due tomorrow. Oluchi has 2 overdue.</div>
+          <div style="margin-top:8px"><span class="mono">09:15</span> Library match: NUPRC Certificate 2026 — High confidence — <a href="#">Use this?</a></div>
+          <div style="margin-top:6px"><span class="mono">11:02</span> Finance uploaded Audited Accounts.pdf — QC flagged 2024 missing</div>
+        </div></div>
+      </div>
+      <div class="footer-note">Sample Chevron-like data for illustration only. Matching suggests relevant documents; it does not approve compliance. Final submission always requires human review.</div>
+    </div>
+  </div>
+</div>
+<script>
+// Tab switching (visual only)
+document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('active')});b.classList.add('active')})});
+// Expand/collapse parent rows
+document.querySelectorAll('tr.parent').forEach(function(r){r.addEventListener('click',function(){var g=r.getAttribute('data-group');var open=r.classList.toggle('collapsed');document.querySelectorAll('tr.sub[data-parent="'+g+'"]').forEach(function(s){s.style.display=open?'none':''});var t=r.querySelector('.req-title');if(t){t.textContent=(open?'▸':'▾')+t.textContent.slice(1)}})});
+// Search filter
+document.getElementById('search').addEventListener('input',function(e){var q=e.target.value.toLowerCase();document.querySelectorAll('#matrix tbody tr').forEach(function(row){row.style.display=row.textContent.toLowerCase().indexOf(q)>-1?'':'none'})});
+</script>
+</body>
+</html>

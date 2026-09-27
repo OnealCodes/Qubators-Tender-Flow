@@ -20,6 +20,14 @@
 
 ---
 
+> **Evaluator Note — Task 2 Design Refinement (2026-09-27, design.html preview only)**
+>
+> * **What was requested/made:** one deliberate usability refinement to the standalone `design.html` preview — improved requirements-matrix readability.
+> * **What was changed in `design.html`:** increased table cell padding and line-height, stronger parent-row separation with zebra shading for sub-rows, sticky header with higher-contrast background plus shadow, and bolder status/QC badges that always combine icon + text with bordered contrast (never colour alone).
+> * **Why it improves the design:** bid managers scan 80+ rows under deadline pressure; clearer row separation, a persistent high-contrast header, and icon-plus-text badges reduce misreading of status/QC, improve contrast for low-vision users, and preserve visual hierarchy on wide B2B tables.
+
+---
+
 # **1\. Product Vision**
 
 Create a platform that transforms the tendering process from a largely manual, document-reading exercise into a **structured, collaborative and quality-controlled workflow**.
