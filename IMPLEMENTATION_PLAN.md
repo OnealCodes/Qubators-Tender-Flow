@@ -224,6 +224,8 @@ PRD §18–§20.
 
 **MVP Demo script ( dogfood this):** 9:00 upload Chevron PDF → 9:02 overview → 9:05 83 reqs → 9:10 suggest owners → 9:15 library matches → 9:20 tasks sent → uploads QC → readiness + final review.
 
+**Status 2026-09-27:** built. Readiness engine (`lib/readiness.ts`): Critical ×5 / Mandatory ×3 / Supporting ×1, conditional excluded from the % and reported separately, every number backed by item lists. Final review groups per §19 (Requirements, Documents, Content, Forms, Commercial, Nigerian Content, HSE) with pass/attention/blocked + ready flag (never auto-submit). Compilation v1 (`/api/.../compilation`): section→folder mapping, evidence files copied + accepted library docs listed + manifest.md materialised under `uploads/<tender>/compilation/`. Checklist route rebuilt: readiness cards, critical list, review groups, compilation folders, markdown export. Verified live: 26% (hand-checked 7.5/29), 1 critical, Commercial/Nigerian Content/HSE correctly blocked, 7 missing files identified.
+
 ---
 
 ## Phase 9 — Hardening for Pilot (1–2 weeks, still local)
