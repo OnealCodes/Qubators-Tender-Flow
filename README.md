@@ -160,7 +160,8 @@ Postgres via Docker comes at the database setup phase (Docker Desktop install pe
 - [x] Phase 1: routed workspace views on demo data
 - [x] Phase 2: ADRs, Docker Compose contract, AI JSON schemas
 - [x] Phase 3: Tender Intake + Overview (upload → parsed pages → overview with source links; heuristic extraction, Postgres-ready local store)
-- [ ] Phase 4: AI Requirement Extraction + Responsibility Matrix
+- [x] Phase 4: Extraction + Responsibility Matrix (versioned runs, human-edits-win, filters, inline edit)
+- [ ] Phase 5: Assignment + Collection + Collaboration (suggested owners, My Tasks, evidence upload, reminders)
 
 ## License
 

@@ -175,6 +175,8 @@ PRD §6–§7. The demo moment.
 - Versioning: re-run extraction creates new version with diff; human edits win.
 - Eval: on Chevron-like fixture target 83 reqs / 126 deliverables shape; manual spot-check for missed CO2/CO7/NUPRC-type splits. Measure precision/recall; keep human-verify loop prominent.
 
+**Status 2026-09-27:** built with heuristic engine v1 (`lib/extract.ts`: obligation/entity detection, year-split, type + risk + reason, owner suggestion, page sources). `POST /api/tenders/[id]/extract` versions runs with added/removed/carried diff; `PATCH /api/requirements/[id]` edits with human-edits-win carried across re-runs (`lib/requirements.ts`, migration `db/002-requirements.sql`). Matrix route serves real data with tender picker, Section/Type/Risk/Status filters, search, expand/collapse, inline edit, and missing counts excluding conditional. Verified on the 2-page fixture: 5 requirements / 9 deliverables, correct NOGIC+NUPRC / HSE / 2022-2024 splits, critical Commercial rule flagged, PATCH + re-run carried the hand-edit (v3). Test rows reset afterwards.
+
 ---
 
 ## Phase 5 — Assignment + Collection + Collaboration (MVP 6–7)
