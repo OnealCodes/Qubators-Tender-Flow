@@ -41,6 +41,8 @@
 > * The Chevron tender appearing in this PRD, in `design.html`, and in the app is an **illustrative sample only** — it reflects how the owner used to lay out a responsibility matrix by hand. **No real tender document was supplied when this PRD was written**, and nothing labelled Chevron here should be treated as a real ITT.
 > * All extraction, matching and QC behaviour so far is verified against a small generated fixture, not a production tender. Precision claims await real documents.
 > * **Real tender samples still needed (for Phase 9 evaluation/pilot):** 2–3 sanitised ITT/RFQ PDFs (any client, personal/client-sensitive pages removed) plus 10–15 reusable company documents (registrations, certificates, policies, CVs, audited accounts, HSE docs). These tune extraction coverage, matching precision and QC false-positive rates, and serve as golden eval fixtures. The owner will provide them when asked — requested now, to unblock Phase 9.
+>
+> * **Update 2026-09-27 — first real samples received:** Renaissance IT Support Services Package 2 invitation letter (CW662877) with the owner's hand-drafted responsibility matrix (Statutory, Corporate, Financial, HSE, Technical C1/C2/C4, Nigerian Content, Health, Commercial sections with named owners), Renaissance Drilling Tools & Equipment Rental ITT excerpts (CW62716, incl. Appendix A questionnaire structure and Section A–E/Nigerian Content tables), and Chevron Electric Line Through Tubing ITT excerpts (CNL.00000353, incl. HSE questionnaire, organogram/CV table, R&D MOA, monthly-reporting clauses). No company-confidential evidence documents shared (correctly withheld). Files to be stored local-only as golden fixtures, never committed.
 
 ---
 
