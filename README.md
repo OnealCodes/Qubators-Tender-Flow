@@ -80,21 +80,24 @@ Key specified capabilities:
 
 ## Current Development Status
 
-**Status: PRD stage — no implementation yet.**
+**Status: Phase 1–2 built — routed workspace shell on demo data (2026-09-27).**
 
 What exists in this repo today:
 
-- `Tender Flow/PRD for TenderFlow.md` — full product requirements (30 sections, MVP scope, end-to-end workflow example)
-- `Tender Flow/README.md` — this file
+- `PRD for TenderFlow.md` — full product requirements (30 sections, MVP scope, end-to-end workflow example)
+- `IMPLEMENTATION_PLAN.md` — phased plan with Phase 1–2 status notes
+- `design.html` — standalone visual preview (reference only, never overwritten by app code)
+- `tenderflow-app/` — Next.js + TypeScript + Tailwind workspace with 7 routed views (Matrix, Overview, Documents, Assignments, QC, Checklist, Activity), ADRs 001–004, `docker-compose.yml` for local Postgres, `extract/v1` + `qc/v1` AI contracts
+- This `README.md`
 
 What does **not** exist yet:
 
-- No application code (frontend / backend)
-- No AI pipeline, database, auth, or hosting setup
-- No tests, build scripts, or deployment config
-- No runnable app
+- No database connection (Docker Desktop install pending; compose file ready)
+- No authentication (Better Auth planned, roles decided in ADR-002)
+- No AI pipeline (contracts frozen in `lib/ai-schemas.ts`, no model calls yet)
+- No tests or deployment (local stage only)
 
-This README therefore describes the **specified** product, not an implemented one.
+This README describes the **specified** product; the app shell runs on demonstration data until backend phases land.
 
 ## Planned / Future Features
 
@@ -125,38 +128,38 @@ Tender templates, tender history / institutional memory, reuse from previous bid
 
 ```text
 .
-├── Tender Flow/
-│   ├── PRD for TenderFlow.md
-│   └── README.md
-└── .gitignore  # ignores unrelated local `French game/` folder
+├── PRD for TenderFlow.md
+├── IMPLEMENTATION_PLAN.md
+├── README.md
+├── design.html               # visual reference only
+└── tenderflow-app/           # Next.js workspace (Phase 0–2)
+    ├── app/                  # 7 routed views
+    ├── components/           # shell + badges/panels
+    ├── lib/                  # demo data + AI contracts
+    ├── docs/                 # ADR-001..004
+    ├── docker-compose.yml    # local Postgres (needs Docker Desktop)
+    └── .env.example
 ```
 
 ## Running the Project Locally
 
-There is currently no code to run. To review the product definition:
+Prerequisites: Node 20+ and npm. Database/Auth/AI are not wired yet.
 
 ```powershell
-# 1. Clone (do not push unless requested)
 git clone https://github.com/OnealCodes/Qubators-Tender-Flow.git
-Set-Location -LiteralPath "Qubators-Tender-Flow"
-
-# 2. Read the spec
-notepad "Tender Flow\PRD for TenderFlow.md"
-notepad "Tender Flow\README.md"
-
-# 3. Check git status
-git status
+Set-Location -LiteralPath "Qubators-Tender-Flow\Tender Flow\tenderflow-app"
+npm install
+npm run dev      # open http://localhost:3000
 ```
 
-Once implementation starts, this section should be updated with prerequisites, install, env vars, and start commands.
+Postgres via Docker comes at the database setup phase (Docker Desktop install pending).
 
 ## Next Steps for Implementation
 
-- [ ] Decide stack (frontend, backend, DB, AI services, file storage)
-- [ ] Add project scaffolding + `.gitignore` + license
-- [ ] Define data model for Tender, Requirement/Sub-item, Assignment, Document, QC Result
-- [ ] Build MVP slice 1–6 (upload → matrix)
-- [ ] Build MVP slice 7–12 (library → readiness)
+- [x] Stack decided, scaffolding + local hygiene, data model sketch
+- [x] Phase 1: routed workspace views on demo data
+- [x] Phase 2: ADRs, Docker Compose contract, AI JSON schemas
+- [ ] Phase 3: Tender Intake + Overview (upload → parsed pages → overview)
 
 ## License
 

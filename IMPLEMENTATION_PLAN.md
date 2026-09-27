@@ -62,8 +62,8 @@ Key PRD constraints driving this plan:
 **Goal:** Bid Manager can scan readiness in 10 seconds; owner knows "what, by when, exactly what".
 
 ### 1.1 Brand & tokens
-- Professional B2B trust palette. Proposal:
-  - Primary navy `#0F2A44`, accent teal `#0E9F8A`, background slate `#F6F7F9`, surface white, text `#111827`.
+- Professional B2B trust palette. Decided (matches `design.html` + app shell):
+  - Primary navy `#0A2C4E`, gold accent `#F5B301`, primary blue `#1D4C8D`, background slate `#F6F7F9`, surface white, text `#111827`.
   - QC semantic (must match PRD): green `#16A34A` / amber `#D97706` / red `#DC2626` / neutral `#9CA3AF`.
   - Risk: Critical red solid, Mandatory orange, Conditional purple, Supporting blue, Informational grey.
 - Typography: Inter (UI) + IBM Plex Mono (refs/doc IDs). Base 14px tables, 16px reading.
@@ -88,6 +88,8 @@ Key PRD constraints driving this plan:
 - Usability test with 1–2 bid managers using Chevron example before coding Phase 3+.
 
 **Done when:** tokens + components documented in `design/` or Storybook, 5 core screens prototyped, source-trace interaction agreed.
+
+**Status 2026-09-27:** Phase 1 built in `tenderflow-app/` — shared shell (sidebar, topbar search, tabs) + 7 routed views (Matrix, Overview, Documents, Assignments, QC, Checklist, Activity) on demo data, matching `design.html` tokens. Source-trace UI (Source drawer opening the tender PDF at page) is still to build in Phase 3+.
 
 ---
 
@@ -146,6 +148,8 @@ Cost principle: prefer free/open-source + local. Do not create paid accounts, su
 - Management views (§24) = Manager read-only dashboard, not a third role. Doc Admin duties = Manager in MVP.
 
 **Done when:** `docs/ADR-*.md` merged, ERD reviewed, Postgres Docker compose verified locally, AI JSON schemas frozen for v1.
+
+**Status 2026-09-27:** ADRs 001–004 recorded in `tenderflow-app/docs/`, `docker-compose.yml` (local pgvector Postgres) added, `extract/v1` + `qc/v1` contracts frozen in `tenderflow-app/lib/ai-schemas.ts`. Compose not yet started — Docker Desktop install is pending (manual step at database setup phase).
 
 ---
 

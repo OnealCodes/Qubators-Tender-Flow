@@ -1,0 +1,25 @@
+# Local PostgreSQL for TenderFlow (free/open-source, no hosted DB)
+# Start at the database setup phase — Docker Desktop install is still pending.
+# Usage: docker compose up -d db   (from tenderflow-app/)
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg16
+    container_name: tenderflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tenderflow
+      POSTGRES_PASSWORD: tenderflow
+      POSTGRES_DB: tenderflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - tenderflow-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tenderflow -d tenderflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  tenderflow-pgdata:

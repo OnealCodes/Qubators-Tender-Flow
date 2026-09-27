@@ -105,3 +105,48 @@ export const qcChecks = [
   { pass: true, text: "2023 accounts found." },
   { pass: false, text: "2024 accounts not found — provide missing 2024 accounts before submission." },
 ];
+
+// ---- Phase 1 route data (all DEMO) ----
+
+export const buckets = [
+  { name: "Technical", count: 47 },
+  { name: "Nigerian Content", count: 18 },
+  { name: "HSE", count: 7 },
+  { name: "Financial", count: 5 },
+  { name: "Commercial", count: 6 },
+];
+
+export const libraryDocs = [
+  { name: "NUPRC Certificate 2026", type: "Registration", version: "v2026", expiry: "31 Dec 2026", status: "Valid", tone: "green" as const },
+  { name: "ISO 9001:2015", type: "Certificate", version: "v3", expiry: "12 Oct 2026", status: "Valid", tone: "green" as const },
+  { name: "Industrial Insurance Policy", type: "Insurance", version: "v2025-26", expiry: "25 Sep 2026", status: "Expiring soon", tone: "amber" as const },
+  { name: "Tax Clearance Certificate", type: "Tax", version: "2024", expiry: "30 Nov 2026", status: "Valid", tone: "green" as const },
+  { name: "HSE Policy Manual", type: "Policy", version: "v7", expiry: "—", status: "Valid", tone: "green" as const },
+  { name: "Company Profile", type: "Profile", version: "v12", expiry: "—", status: "Valid", tone: "green" as const },
+];
+
+export const assignments = [
+  { owner: "Oluchi", dept: "Commercial", items: [["Insurance", "Pending"], ["Parent Company Guarantee", "In Progress"], ["Community Engagement Plan", "Received"], ["Contractor Brief Form", "Pending"]] },
+  { owner: "Bisola", dept: "Nigerian Content", items: [["CO2", "Received"], ["CO7", "Received"], ["NOGIC JQS", "In Progress"], ["NUPRC certificate", "Received"]] },
+  { owner: "Olabanji", dept: "Finance", items: [["2022 accounts", "Received"], ["2023 accounts", "Received"], ["2024 accounts", "Outstanding"], ["Tax clearance", "Received"]] },
+  { owner: "HSE team", dept: "HSE", items: [["Safety programme", "Pending"], ["JHA", "Pending"], ["HSE policy", "Received"]] },
+];
+
+export const checklistGroups = [
+  { group: "Requirements", items: [["Every mandatory requirement addressed?", "In progress"], ["Conditional requirements resolved?", "Review"], ["No outstanding critical items?", "Issue"]] },
+  { group: "Documents", items: [["Required documents present?", "In progress"], ["Correct versions in use?", "Review"], ["No expired documents submitted?", "Issue"]] },
+  { group: "Content", items: [["Evidence matches requirement?", "Review"], ["Required dates/years covered?", "Issue"]] },
+  { group: "Forms", items: [["Required forms completed?", "Pending"], ["Signatures present?", "Pending"], ["Client templates preserved?", "Review"]] },
+  { group: "Commercial", items: [["All pricing items quoted?", "In progress"], ["Mandatory commercial templates included?", "Pending"]] },
+  { group: "Nigerian Content", items: [["NCDMB/NOGIC documents present?", "In progress"]] },
+  { group: "HSE", items: [["HSE policies, records and plans included?", "Pending"]] },
+];
+
+export const activity = [
+  { time: "09:00", text: "Bid Manager uploaded Chevron_Cementing_ITT.pdf" },
+  { time: "09:02", text: "Overview extracted: 83 requirements across 5 buckets" },
+  { time: "09:10", text: "Owners suggested and confirmed (9 owners)" },
+  { time: "09:15", text: "Library match: NUPRC Certificate 2026 — High confidence — accepted" },
+  { time: "11:02", text: "Finance uploaded Audited Accounts.pdf — QC flagged 2024 missing" },
+  { time: "14:00", text: "Readiness recomputed: 72% · 4 critical issues · 13 outstanding" },
+];
