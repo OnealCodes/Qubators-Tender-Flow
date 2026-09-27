@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { logActivity } from "../../../lib/collab";
 import { extractOverview } from "../../../lib/overview";
 import { parsePdf } from "../../../lib/pdf";
 import { buildRecord, listTenders, saveTender, uploadsDir, validateUpload } from "../../../lib/tenders";
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
   const overview = extractOverview(parsed, file.name);
   const record = buildRecord(id, file.name, file.size, overview, parsed.page_count, parsed.scanned);
   const used = await saveTender(record, parsed.pages);
+  await logActivity(id, "upload", { file_name: file.name, page_count: parsed.page_count });
 
   return NextResponse.json(
     { backend: used, tender: { ...record, overview }, scanned: parsed.scanned },

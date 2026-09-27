@@ -307,3 +307,84 @@ export async function updateRequirement(id: string, patch: Record<string, unknow
   await fs.writeFile(await docFile(), JSON.stringify(doc, null, 2), "utf8");
   return r;
 }
+
+// ---------- Phase 5 helpers ----------
+
+export async function getRequirement(id: string): Promise<Requirement | null> {
+  if (await postgresReachable()) {
+    try {
+      const p = await pool();
+      try {
+        const r = await p.query("SELECT * FROM requirements WHERE id=$1", [id]);
+        return r.rows.length ? toReq(r.rows[0]) : null;
+      } finally {
+        await p.end();
+      }
+    } catch { /* fall through */ }
+  }
+  const doc = await readDoc();
+  return doc.requirements.find((x) => x.id === id) ?? null;
+}
+
+const DELIV_PATCHABLE = ["title", "owner", "due_date", "status"] as const;
+
+export async function updateDeliverable(id: string, patch: Record<string, unknown>): Promise<{ deliv: Deliverable; tender_id: string } | null> {
+  const clean: Record<string, unknown> = {};
+  for (const k of DELIV_PATCHABLE) if (patch[k] !== undefined) clean[k] = patch[k];
+  if (Object.keys(clean).length === 0) return null;
+
+  if (await postgresReachable()) {
+    try {
+      const p = await pool();
+      try {
+        const sets = Object.keys(clean).map((k, i) => `${k}=$${i + 1}`);
+        const r = await p.query(
+          `UPDATE deliverables SET ${sets.join(",")} WHERE id=$${Object.keys(clean).length + 1} RETURNING *,
+           (SELECT tender_id FROM requirements WHERE id=deliverables.requirement_id) AS tender_id`,
+          [...Object.values(clean), id]
+        );
+        if (!r.rows.length) return null;
+        return { deliv: toDeliv(r.rows[0]), tender_id: String(r.rows[0].tender_id) };
+      } finally {
+        await p.end();
+      }
+    } catch { /* fall through */ }
+  }
+  const doc = await readDoc();
+  const d = doc.deliverables.find((x) => x.id === id);
+  if (!d) return null;
+  Object.assign(d, clean);
+  await fs.writeFile(await docFile(), JSON.stringify(doc, null, 2), "utf8");
+  const req = doc.requirements.find((x) => x.id === d.requirement_id);
+  return { deliv: d, tender_id: req?.tender_id ?? "" };
+}
+
+// Assign (Accept/Change): sets owner on the requirement and cascades to
+// its deliverables unless they already have a specific owner.
+export async function assignRequirement(id: string, owner: string, dueDate: string | null): Promise<Requirement | null> {
+  const req = await getRequirement(id);
+  if (!req || !owner.trim()) return null;
+  const updated = await updateRequirement(id, { owner: owner.trim(), ...(dueDate ? { due_date: dueDate } : {}) });
+  if (!updated) return null;
+
+  if (await postgresReachable()) {
+    try {
+      const p = await pool();
+      try {
+        await p.query("UPDATE deliverables SET owner=$1 WHERE requirement_id=$2 AND (owner IS NULL OR owner='')", [owner.trim(), id]);
+        if (dueDate) await p.query("UPDATE deliverables SET due_date=$1 WHERE requirement_id=$2 AND due_date IS NULL", [dueDate, id]);
+      } finally {
+        await p.end();
+      }
+    } catch { /* fall through */ }
+  }
+  const doc = await readDoc();
+  let touched = false;
+  for (const d of doc.deliverables) {
+    if (d.requirement_id !== id) continue;
+    if (!d.owner) { d.owner = owner.trim(); touched = true; }
+    if (dueDate && !d.due_date) { d.due_date = dueDate; touched = true; }
+  }
+  if (touched) await fs.writeFile(await docFile(), JSON.stringify(doc, null, 2), "utf8");
+  return getRequirement(id);
+}

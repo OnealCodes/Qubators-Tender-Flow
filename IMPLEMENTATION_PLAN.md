@@ -187,6 +187,8 @@ PRD §8, §12–§13.
 - Reminders: daily digest + overdue nudges (email + in-app). Bid Manager sees overdue by person.
 - Presence/activity feed for audit.
 
+**Status 2026-09-27:** built. `POST /api/requirements/[id]/assign` accepts/changes suggested owners with due-date cascade to sub-items (`lib/requirements.ts`); deliverable APIs for evidence upload (PDF/DOC/XLS/PNG/JPG/ZIP ≤200 MB into `uploads/<tender>/evidence/`), status/due edits, and comments with kinds (comment/issue/clarification_request); `GET activity` audit feed auto-logged from upload/extract/assign/evidence/comment/status; `GET reminders` computes overdue + due-within-3-days with overdue-by-owner. Assignments route shows suggestions with Accept/Change, per-owner groups with expandable evidence/notes/status/due controls, and the reminders panel; Activity route reads the real feed. Email digest deferred (no paid service). Verified end-to-end on Postgres: assign → evidence → issue → complete → 1 overdue reminder → 6-entry audit trail.
+
 ---
 
 ## Phase 6 — Library + Matching + Expiry (MVP 8–9 + §11)
