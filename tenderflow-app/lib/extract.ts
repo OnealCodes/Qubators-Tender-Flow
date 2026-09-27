@@ -148,6 +148,9 @@ const SKIP_PATTERNS = [
   /\.{5,}|…{2,}/,
   /^CW\d+\s+ES\/NCDMB/i,
   /^[^a-z]*$/,
+  // Table header fragments ("S/N JOB TITLE QTY ... YES/NO ... EXPAT ...").
+  /^S\/N[\s|]/i,
+  /YES\s*\/\s*NO.*YES\s*\/\s*NO/i,
 ];
 
 export function extractRequirements(pages: ParsedPage[]): ExtractedRequirement[] {

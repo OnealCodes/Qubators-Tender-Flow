@@ -215,6 +215,8 @@ PRD §14–§17.
 
 **Update — first real-tender tuning (Renaissance Drilling Tools ITT, 150pp, CW62716):** v1 hit the 200-row cap with header/footer/definition noise, COMPANY-side obligations, 128 unassigned owners and only 2 Nigerian-Content rows. Engine v1.1: boilerplate skips + page-number strip, COMPANY-only exclusion, bidder-subject candidacy gate, section zones, section-default owners (0 unassigned), year-split labelled for tax vs audit, widened critical patterns plus standalone critical-consequence candidacy, cap 400. v3: 235 requirements, 43 Nigerian Content, 6 true criticals (invalidate / not-considered / NipeX rejection / disqualification / not-evaluated wording), CO2-CO7/NUPRC/tax-years/organogram/NCEC/HCD-letter all recalled with correct owners. Remaining noise: ~95 HSE questionnaire sub-questions (genuinely answerable; grouping under section parents deferred) — ranking/filtering is the next lever, not more skipping.
 
+**Second tender (SNEPCo Electric Wireline ITT, 60pp, CW923146):** v1 gave 102 requirements with 7 genuine criticals (invalidate wording, SEPARATE FILES rule, NC minimum → disqualification, template alteration, unpriced-item disqualification, not-evaluated clause) and one table-header artifact. Added CV/personnel-table header skips; v2 removed exactly that row (101 reqs), re-running Drilling Tools confirmed zero collateral. Commercial-heavy section split (45) matches this ITT's actual content.
+
 ---
 
 ## Phase 8 — Readiness + Final Checklist + Compilation (MVP 11–12 + §20 partial)
