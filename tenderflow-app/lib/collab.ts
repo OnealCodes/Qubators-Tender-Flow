@@ -15,6 +15,14 @@ export interface Evidence {
   created_at: string;
 }
 
+// Absolute disk paths must never leave the server: API responses expose a
+// path relative to the uploads directory instead.
+export function publicEvidence(e: Evidence): Omit<Evidence, "storage_path"> & { file: string } {
+  const { storage_path, ...rest } = e;
+  const rel = path.relative(uploadsDir(), storage_path).replace(/\\/g, "/");
+  return { ...rest, file: rel };
+}
+
 export interface Comment {
   id: string;
   deliverable_id: string;

@@ -165,7 +165,8 @@ Postgres via Docker comes at the database setup phase (Docker Desktop install pe
 - [x] Phase 6: Library + Matching + Expiry (reusable docs, match suggestions, expiry engine)
 - [x] Phase 7: Intelligent QC + Risk Engine (per-deliverable checks, critical-rule detection)
 - [x] Phase 8: Readiness + Final Checklist + Compilation (computed readiness, final review, bid folders)
-- [ ] Phase 9: Pilot hardening (security, performance, eval fixtures from real tenders)
+- [x] Phase 9: Pilot hardening in progress (rate limits, pagination, real-tender eval, metrics, backup drill)
+- [ ] Pilot: 1 live tender end-to-end with weekly feedback (needs Playwright tests + email digest decisions)
 - [ ] Phase 8: Readiness + Final Checklist + Compilation (computed readiness, final review, bid folders)
 - [ ] Phase 7: Intelligent QC + Risk Engine (per-deliverable checks, critical-rule detection)
 

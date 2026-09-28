@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listComments, listEvidence, logActivity } from "../../../../lib/collab";
+import { listComments, listEvidence, logActivity, publicEvidence } from "../../../../lib/collab";
 import { updateDeliverable } from "../../../../lib/requirements";
 
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ async function findTenderId(deliverableId: string): Promise<string | null> {
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const [evidence, comments] = await Promise.all([listEvidence(id), listComments(id)]);
-  return NextResponse.json({ evidence, comments });
+  return NextResponse.json({ evidence: evidence.map(publicEvidence), comments });
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

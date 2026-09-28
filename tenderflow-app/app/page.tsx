@@ -36,7 +36,10 @@ export default function MatrixPage() {
   const [editing, setEditing] = useState<Record<string, { title: string; owner: string; status: string }>>({});
 
   useEffect(() => {
-    const h = (e: Event) => setQuery((e as CustomEvent<string>).detail ?? "");
+    const h = (e: Event) => {
+      setQuery((e as CustomEvent<string>).detail ?? "");
+      setPage(0);
+    };
     window.addEventListener("tf-search", h);
     return () => window.removeEventListener("tf-search", h);
   }, []);
@@ -101,14 +104,21 @@ export default function MatrixPage() {
 
   const sections = useMemo(() => [...new Set(reqs.map((r) => r.section))], [reqs]);
   const q = query.toLowerCase();
+  const [fUnassigned, setFUnassigned] = useState(false);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
   const filtered = reqs.filter(
     (r) =>
       (!fSection || r.section === fSection) &&
       (!fType || r.type === fType) &&
       (!fRisk || r.risk === fRisk) &&
       (!fStatus || r.status === fStatus) &&
+      (!fUnassigned || !r.owner) &&
       (!q || `${r.title} ${r.owner ?? ""} ${r.section}`.toLowerCase().includes(q))
   );
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
   const delivCount = useMemo(() => {
     const ids = new Set(filtered.map((r) => r.id));
     return delivs.filter((d) => ids.has(d.requirement_id)).length;
@@ -132,7 +142,7 @@ export default function MatrixPage() {
     <Shell>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="text-sm font-bold">Tender:</label>
-        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); loadReqs(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
+        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setPage(0); loadReqs(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
           {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title} ({t.page_count}p)</option>))}
         </select>
         <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50">
@@ -149,27 +159,38 @@ export default function MatrixPage() {
       ) : (
         <>
           <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-            <select value={fSection} onChange={(e) => setFSection(e.target.value)} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by section">
+            <select value={fSection} onChange={(e) => { setFSection(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by section">
               <option value="">All sections</option>{sections.map((s) => (<option key={s}>{s}</option>))}
             </select>
-            <select value={fType} onChange={(e) => setFType(e.target.value)} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by type">
+            <select value={fType} onChange={(e) => { setFType(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by type">
               <option value="">All types</option>{["doc", "info", "form", "evidence", "action", "conditional"].map((t) => (<option key={t}>{t}</option>))}
             </select>
-            <select value={fRisk} onChange={(e) => setFRisk(e.target.value)} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by risk">
+            <select value={fRisk} onChange={(e) => { setFRisk(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by risk">
               <option value="">All risks</option>{["critical", "mandatory", "conditional", "supporting", "info"].map((t) => (<option key={t}>{t}</option>))}
             </select>
-            <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by status">
+            <select value={fStatus} onChange={(e) => { setFStatus(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by status">
               <option value="">All statuses</option>{["outstanding", "in-progress", "received", "complete"].map((t) => (<option key={t}>{t}</option>))}
             </select>
+            <label className="flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5">
+              <input type="checkbox" checked={fUnassigned} onChange={(e) => { setFUnassigned(e.target.checked); setPage(0); }} aria-label="Show unassigned only" />
+              Unassigned
+            </label>
             <span className="ml-auto text-[#5B6472]">{filtered.length} requirements · {delivCount} deliverables · {missing} missing (conditional excluded)</span>
           </div>
+          {pageCount > 1 && (
+            <div className="mb-3 flex items-center gap-2 text-sm">
+              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0} className="rounded border border-[#E2E8F0] bg-white px-3 py-1.5 font-bold disabled:opacity-40">← Prev</button>
+              <span className="text-[#5B6472]">Page {safePage + 1} of {pageCount} (50 per page)</span>
+              <button onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1} className="rounded border border-[#E2E8F0] bg-white px-3 py-1.5 font-bold disabled:opacity-40">Next →</button>
+            </div>
+          )}
 
           <div className="mb-4 overflow-hidden rounded-[10px] border border-[#E2E8F0] bg-white">
             <div className="overflow-x-auto">
               <table className="matrix-table w-full min-w-[960px] text-[14.5px]" aria-label="Requirements matrix">
                 <thead><tr>{["Section", "Requirement / Deliverables", "Owner", "Due", "Status", "QC", "Source"].map((h) => (<th key={h} className="px-3.5 py-3 text-left text-xs uppercase tracking-wider">{h}</th>))}</tr></thead>
                 <tbody>
-                  {filtered.map((r) => {
+                  {visible.map((r) => {
                     const items = delivs.filter((d) => d.requirement_id === r.id);
                     const isCollapsed = !!collapsed[r.id];
                     const e = editing[r.id];

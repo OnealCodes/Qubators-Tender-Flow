@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { limited, rateLimitedResponse } from "../../../../../lib/rate-limit";
 import { runQcForDeliverable, tenderQc } from "../../../../../lib/qc-store";
 
 export const runtime = "nodejs";
@@ -13,6 +14,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 // Run QC across every deliverable of the tender (uses each item's latest
 // evidence or accepted library match; items without sources stay not_reviewed).
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const gate = limited(_req, "heavy");
+  if (gate.limited) return rateLimitedResponse(gate.retryAfter);
   const { id } = await ctx.params;
   const before = await tenderQc(id);
   let backend: "postgres" | "local" = before.backend;

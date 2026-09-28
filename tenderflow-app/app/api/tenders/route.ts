@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { logActivity } from "../../../lib/collab";
+import { limited, rateLimitedResponse } from "../../../lib/rate-limit";
 import { extractOverview } from "../../../lib/overview";
 import { parsePdf } from "../../../lib/pdf";
 import { buildRecord, listTenders, saveTender, uploadsDir, validateUpload } from "../../../lib/tenders";
@@ -19,6 +20,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const gate = limited(req, "heavy");
+  if (gate.limited) return rateLimitedResponse(gate.retryAfter);
   let form: FormData;
   try {
     form = await req.formData();

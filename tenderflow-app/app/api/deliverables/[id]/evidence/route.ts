@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { addEvidence, logActivity } from "../../../../../lib/collab";
+import { addEvidence, logActivity, publicEvidence } from "../../../../../lib/collab";
+import { limited, rateLimitedResponse } from "../../../../../lib/rate-limit";
 import { uploadsDir } from "../../../../../lib/tenders";
 
 export const runtime = "nodejs";
@@ -18,6 +19,8 @@ function evidenceProblem(fileName: string, size: number): string | null {
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const gate = limited(req, "heavy");
+  if (gate.limited) return rateLimitedResponse(gate.retryAfter);
   const { id } = await ctx.params;
   let form: FormData;
   try {
@@ -41,5 +44,5 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const entry = await addEvidence(id, file.name, file.size, storagePath);
   await logActivity(tenderId, "evidence", { deliverable_id: id, file_name: file.name, evidence_id: entry.id });
-  return NextResponse.json({ evidence: entry }, { status: 201 });
+  return NextResponse.json({ evidence: publicEvidence(entry) }, { status: 201 });
 }

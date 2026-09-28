@@ -240,6 +240,8 @@ PRD §18–§20.
 - Observability: local logs + minimal OSS metrics (funnel: upload→matrix→assignments→QC→ready), cost tracking per AI job.
 - Local readiness: `dev` local only; Postgres Docker volume backups; restore drill. Pilot with 1 Nigerian service company, 1 live tender, weekly feedback. No deployment at this stage.
 
+**Status 2026-09-27:** hardening underway. Security: absolute disk paths stripped from evidence API responses, in-memory rate limits on heavy POSTs (upload/extract/QC run-all/evidence), audit export (JSON + CSV). Performance: matrix paginated at 50/page with Unassigned filter; Assignments groups co-owners (`&`/`,`) with an Unassigned queue. Testing: `scripts/real-eval.mjs` passes over all 14 live tenders (parse + extract + grounding + splits + key-entity recall + conditional math + NUPRC match); `scripts/qc-eval.mjs` 20/20. Observability: `/api/.../metrics` funnel + AI spend ($0, heuristics only). Readiness: pg_dump backup (2.3 MB) + restore drill to temp DB matched live exactly (14 tenders / 429 reqs / 359 pages), drill DB dropped, `backups/` git-ignored. Deferred to pilot: Playwright browser tests, email digest, PDF streaming viewer.
+
 ---
 
 ## Phase 10 — Post-MVP (do not start early)

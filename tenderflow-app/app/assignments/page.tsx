@@ -134,11 +134,19 @@ export default function AssignmentsPage() {
   }
 
   const suggestions = reqs.filter((r) => r.suggested_owner && r.suggested_owner !== r.owner);
+  // Co-owners ("Henry, Tosin & Michael") each see the item under their own
+  // name; items with no owner land in the Unassigned queue.
+  function ownersOf(owner: string | null): string[] {
+    if (!owner || !owner.trim()) return ["Unassigned"];
+    const parts = owner.split(/[,/&]/).map((s) => s.trim()).filter(Boolean);
+    return parts.length ? parts : ["Unassigned"];
+  }
   const groups = new Map<string, Deliv[]>();
   for (const d of delivs) {
-    const key = d.owner ?? "Unassigned";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(d);
+    for (const key of ownersOf(d.owner)) {
+      if (!groups.has(key)) groups.set(key, []);
+      if (!groups.get(key)!.some((x) => x.id === d.id)) groups.get(key)!.push(d);
+    }
   }
 
   if (tenders.length === 0) {
