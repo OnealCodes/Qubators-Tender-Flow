@@ -58,7 +58,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <input value={q} onChange={(e) => { setQ(e.target.value); emitSearch(e.target.value); }} type="search" placeholder="Search requirements, documents, owners…" aria-label="Search requirements" className="flex-1 border-0 text-sm outline-none" />
           </div>
           <Link href="/checklist" className="rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-bold text-[#0A2C4E]">Final review</Link>
-          <button className="rounded-lg bg-[#1D4C8D] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#14365F]" type="button">+ Upload tender</button>
+          <Link href="/overview" className="rounded-lg bg-[#1D4C8D] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#14365F]" title="Go to Overview to upload an ITT package">+ Upload tender</Link>
           <div className="ml-auto hidden text-[13px] text-[#5B6472] lg:block">Submission in <strong className="text-[#DC2626]">{tender.countdown}</strong> · {tender.submission}</div>
           <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[#0A2C4E] text-[13px] font-bold text-white" title="Bid Manager">BM</div>
         </div>
