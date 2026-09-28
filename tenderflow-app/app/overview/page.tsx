@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell from "../../components/shell";
 import { Badge, Panel } from "../../components/ui";
@@ -141,6 +142,13 @@ export default function OverviewPage() {
         </div>
         {uploading && <p className="py-2 text-sm font-semibold">{progress}</p>}
         {!uploading && progress && <p className="py-2 text-sm text-[#5B6472]">{progress}</p>}
+        {!uploading && progress.startsWith("Done") && (
+          <div className="mt-1 rounded-lg border border-[#F5B301] bg-[#FFF6DE] p-3 text-sm">
+            <strong>Next step:</strong> go to the{" "}
+            <Link href="/" className="font-bold text-[#1D4C8D] underline">Matrix → Run extraction</Link>,
+            then Assignments → QC → Checklist. Each step picks up where this one left off.
+          </div>
+        )}
         {error && <p className="py-2 text-sm font-bold text-[#DC2626]">{error}</p>}
       </Panel>
 
