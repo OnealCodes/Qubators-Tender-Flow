@@ -114,6 +114,12 @@ function classifyRisk(text: string, type: string): { risk: string; reason: strin
     return { risk: "critical", reason: "Matched disqualification/rejection wording." };
   if (/reject/i.test(text) && /tender|bid/i.test(text))
     return { risk: "critical", reason: "Rejection tied to the tender/bid itself." };
+  // Legal boilerplate states context, not actions: keep the row (recall)
+  // but don't let it inflate mandatory counts (precision). Checked before
+  // must/shall because boilerplate itself uses those modals ("shall neither
+  // be construed"). Pattern kept tight to avoid catching real obligations.
+  if (/construed as|\bdefinition|\binterpretation|governing law|entire agreement|\bheadings?\b|notice address|address for notices/i.test(text))
+    return { risk: "supporting", reason: "Legal/interpretive context — kept for completeness, not a core action." };
   if (/\bmust\b|\bshall\b|mandatory|required|compulsory/i.test(text))
     return { risk: "mandatory", reason: "Stated with must/shall/required wording." };
   if (/\bmay\b|\bshould\b|recommended|supporting|advantage/i.test(text))

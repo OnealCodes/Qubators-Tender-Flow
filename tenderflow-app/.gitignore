@@ -36,6 +36,9 @@ yarn-error.log*
 # local MVP file storage (originals + derived text stay on dev machine)
 uploads/
 
+# local database backups (never committed)
+.local-backups/
+
 # vercel
 .vercel
 

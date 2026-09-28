@@ -59,6 +59,9 @@ export default function ActivityPage() {
             {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title}</option>))}
           </select>
         )}
+        {activeId && (
+          <a href={`/api/tenders/${activeId}/activity/export`} className="rounded-lg border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-bold text-[#0A2C4E]">Export audit trail</a>
+        )}
       </div>
       <Panel title={items.length ? `Audit trail (${items.length})` : "Audit trail"}>
         {items.length === 0 ? (
