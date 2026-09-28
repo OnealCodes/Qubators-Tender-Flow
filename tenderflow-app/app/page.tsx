@@ -32,6 +32,7 @@ export default function MatrixPage() {
   const [fType, setFType] = useState("");
   const [fRisk, setFRisk] = useState("");
   const [fStatus, setFStatus] = useState("");
+  const [fEnvelope, setFEnvelope] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<Record<string, { title: string; owner: string; status: string }>>({});
 
@@ -63,6 +64,8 @@ export default function MatrixPage() {
       .catch(() => {});
   }, [loadReqs]);
 
+  const [meta, setMeta] = useState<{ weights?: { criterion: string; weight: string }[]; skipped_post_award?: number; skipped_evaluation?: number } | null>(null);
+
   async function runExtraction() {
     if (!activeId) return;
     setRunning(true);
@@ -74,6 +77,7 @@ export default function MatrixPage() {
         setNotice(j.error ?? "Extraction failed.");
       } else {
         setDiff(j.diff);
+        setMeta(j.meta ?? null);
         await loadReqs(activeId);
       }
     } catch {
@@ -107,15 +111,18 @@ export default function MatrixPage() {
   const [fUnassigned, setFUnassigned] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
-  const filtered = reqs.filter(
-    (r) =>
-      (!fSection || r.section === fSection) &&
-      (!fType || r.type === fType) &&
-      (!fRisk || r.risk === fRisk) &&
-      (!fStatus || r.status === fStatus) &&
-      (!fUnassigned || !r.owner) &&
-      (!q || `${r.title} ${r.owner ?? ""} ${r.section}`.toLowerCase().includes(q))
-  );
+  const filtered = reqs
+    .filter(
+      (r) =>
+        (!fSection || r.section === fSection) &&
+        (!fEnvelope || (r.envelope ?? "Technical") === fEnvelope) &&
+        (!fType || r.type === fType) &&
+        (!fRisk || r.risk === fRisk) &&
+        (!fStatus || r.status === fStatus) &&
+        (!fUnassigned || !r.owner) &&
+        (!q || `${r.title} ${r.owner ?? ""} ${r.section}`.toLowerCase().includes(q))
+    )
+    .sort((a, b) => (a.envelope ?? "Technical") === (b.envelope ?? "Technical") ? 0 : (a.envelope ?? "Technical") === "Technical" ? -1 : 1);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
@@ -142,13 +149,19 @@ export default function MatrixPage() {
     <Shell>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="text-sm font-bold">Tender:</label>
-        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setPage(0); loadReqs(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
+        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setPage(0); loadReqs(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
           {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title} ({t.page_count}p)</option>))}
         </select>
         <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50">
           {running ? "Extracting…" : reqs.length ? "Re-run extraction" : "Run extraction"}
         </button>
         {diff && <span className="text-sm text-[#5B6472]">v{diff.version}: +{diff.added} new · −{diff.removed} removed · {diff.carried_edited} hand-edits kept</span>}
+        {meta && ((meta.weights?.length ?? 0) > 0 || (meta.skipped_post_award ?? 0) > 0) && (
+          <span className="text-sm text-[#5B6472]">
+            · eval weights: {(meta.weights ?? []).map((w) => `${w.criterion} ${w.weight}`).slice(0, 3).join("; ")}
+            {(meta.weights?.length ?? 0) > 3 ? "…" : ""} · post-award set aside: {meta.skipped_post_award ?? 0}
+          </span>
+        )}
       </div>
       {notice && <p className="mb-3 text-sm font-bold text-[#DC2626]">{notice}</p>}
 
@@ -161,6 +174,11 @@ export default function MatrixPage() {
           <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
             <select value={fSection} onChange={(e) => { setFSection(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by section">
               <option value="">All sections</option>{sections.map((s) => (<option key={s}>{s}</option>))}
+            </select>
+            <select value={fEnvelope} onChange={(e) => { setFEnvelope(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by envelope">
+              <option value="">Technical + Commercial</option>
+              <option value="Technical">Technical only</option>
+              <option value="Commercial">Commercial only</option>
             </select>
             <select value={fType} onChange={(e) => { setFType(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by type">
               <option value="">All types</option>{["doc", "info", "form", "evidence", "action", "conditional"].map((t) => (<option key={t}>{t}</option>))}
@@ -197,7 +215,10 @@ export default function MatrixPage() {
                     return (
                       <>
                         <tr key={r.id} className="border-t-2 border-[#CBD5E1] bg-white">
-                          <td className="px-3.5 py-3.5 align-top"><Badge tone="blue">{r.section}</Badge></td>
+                          <td className="px-3.5 py-3.5 align-top">
+                            <Badge tone="blue">{r.section}</Badge>
+                            <div className="mt-1"><Badge tone={(r.envelope ?? "Technical") === "Commercial" ? "amber" : "grey"}>{r.envelope ?? "Technical"}</Badge></div>
+                          </td>
                           <td className="px-3.5 py-3.5 align-top">
                             <button onClick={() => setCollapsed((s) => ({ ...s, [r.id]: !s[r.id] }))} className="font-extrabold">
                               {isCollapsed ? "▸" : "▾"} {r.title}

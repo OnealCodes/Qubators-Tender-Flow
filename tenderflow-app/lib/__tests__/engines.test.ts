@@ -11,9 +11,11 @@ function pages(...texts: string[]) {
 }
 
 describe("extractRequirements", () => {
+  const reqs = (...texts: string[]) => extractRequirements(pages(...texts)).requirements;
+
   it("splits CO2/CO7 entities into sub-items under one parent", () => {
-    const out = extractRequirements(
-      pages("Nigerian Content: Certified true copies of CAC Forms CO2 and CO7 respectively.")
+    const out = reqs(
+      "Nigerian Content: Certified true copies of CAC Forms CO2 and CO7 respectively."
     );
     expect(out.length).toBe(1);
     expect(out[0].deliverables.map((d) => d.title)).toEqual(
@@ -23,30 +25,30 @@ describe("extractRequirements", () => {
   });
 
   it("year-splits audited accounts", () => {
-    const out = extractRequirements(
-      pages("Financial: Provide evidence of Three-Years Tax Clearance Certificate (2022, 2023, 2024).")
+    const out = reqs(
+      "Financial: Provide evidence of Three-Years Tax Clearance Certificate (2022, 2023, 2024)."
     );
     expect(out.length).toBe(1);
     expect(out[0].deliverables.length).toBeGreaterThanOrEqual(3);
   });
 
   it("marks conditional rows so they never count as missing", () => {
-    const out = extractRequirements(pages("Provide Parent Company Guarantee if applicable."));
+    const out = reqs("Provide Parent Company Guarantee if applicable.");
     expect(out[0].type).toBe("conditional");
     expect(out[0].risk).toBe("conditional");
   });
 
   it("flags disqualification wording as critical with a reason", () => {
-    const out = extractRequirements(
-      pages("Commercial: failure to quote for ALL items shall lead to disqualification.")
+    const out = reqs(
+      "Commercial: failure to quote for ALL items shall lead to disqualification."
     );
     expect(out[0].risk).toBe("critical");
     expect(out[0].risk_reason.length).toBeGreaterThan(0);
   });
 
   it("demotes legal boilerplate to supporting without dropping it", () => {
-    const out = extractRequirements(
-      pages("Tenderers shall maintain confidentiality since disclosure shall neither be construed as granting any rights")
+    const out = reqs(
+      "Tenderers shall maintain confidentiality since disclosure shall neither be construed as granting any rights"
     );
     expect(out.length).toBe(1);
     expect(out[0].risk).toBe("supporting");
@@ -54,8 +56,65 @@ describe("extractRequirements", () => {
 
   it("dedupes identical segments", () => {
     const seg = "HSE: Tenderers must submit a safety programme before mobilisation.";
-    const out = extractRequirements(pages(seg, seg));
+    const out = reqs(seg, seg);
     expect(out.length).toBe(1);
+  });
+
+  it("picks up verbless bullets inside Mandatory Bid Content", () => {
+    const { requirements: out } = extractRequirements(
+      pages("4.1 Mandatory Bid Content. Bidders must submit: • Method statement per Section 2.21. • Schedule with critical path.")
+    );
+    const titles = out.map((r) => r.title);
+    expect(titles.some((t) => /method statement/i.test(t))).toBe(true);
+    expect(titles.some((t) => /critical path/i.test(t))).toBe(true);
+    expect(out.every((r) => r.envelope === "Technical")).toBe(true);
+  });
+
+  it("sets post-award execution clauses aside, never in the matrix", () => {
+    const { requirements: out, meta } = extractRequirements(
+      pages("Contract Execution. The Contractor shall supply SERVICES diligently during execution of the works after award.")
+    );
+    expect(out.length).toBe(0);
+    expect(meta.skipped_post_award).toBeGreaterThan(0);
+  });
+
+  it("sets 'applicable to the work' execution clauses aside", () => {
+    const { requirements: out, meta } = extractRequirements(
+      pages("Contractor shall prepare a quality plan applicable to the work in accordance with the latest edition.")
+    );
+    expect(out.length).toBe(0);
+    expect(meta.skipped_post_award).toBeGreaterThan(0);
+  });
+
+  it("keeps neighbouring Technical rows out of the Commercial envelope", () => {
+    const { requirements: out } = extractRequirements(
+      pages("4.2 Pricing Schedule. Item Scope Price basis Group A Sections Lump sum. Contractor shall prepare a quality plan for the bid.")
+    );
+    const plan = out.find((r) => /quality plan/i.test(r.title));
+    expect(plan).toBeDefined();
+    expect(plan!.envelope).toBe("Technical");
+  });
+
+  it("turns pricing-schedule rows into Commercial deliverables", () => {
+    const { requirements: out } = extractRequirements(
+      pages("4.2 Pricing Schedule. Bidders shall price by scope group. Group A Sections 2.4 to 2.8 Lump sum. Group B Sections 2.9 and 2.10 Lump sum, itemised separately.")
+    );
+    const pricing = out.find((r) => r.title === "Pricing Schedule — price by scope group");
+    expect(pricing).toBeDefined();
+    expect(pricing!.envelope).toBe("Commercial");
+    expect(pricing!.deliverables.map((d) => d.title).join(" ")).toMatch(/Group A|Group B/);
+  });
+
+  it("captures evaluation weights instead of requirement rows", () => {
+    const { requirements: out, meta } = extractRequirements(
+      pages("4.3 Evaluation Criteria. Bids will be evaluated. Technical method 40%. Nigerian content 10%.")
+    );
+    expect(out.length).toBe(0);
+    expect(meta.weights).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ criterion: "Technical method", weight: "40%" }),
+      ])
+    );
   });
 });
 

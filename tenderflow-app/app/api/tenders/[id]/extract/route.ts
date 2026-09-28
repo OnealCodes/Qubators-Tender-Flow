@@ -24,8 +24,8 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (!tender.pages || tender.pages.length === 0) {
     return NextResponse.json({ error: "No parsed pages for this tender yet. Upload and parse first." }, { status: 409 });
   }
-  const extracted = extractRequirements(tender.pages);
-  const { diff, backend } = await saveRun(id, extracted);
-  await logActivity(id, "extract", { version: diff.version, requirements: diff.requirement_count, deliverables: diff.deliverable_count });
-  return NextResponse.json({ backend, diff }, { status: 201 });
+  const { requirements, meta } = extractRequirements(tender.pages);
+  const { diff, backend } = await saveRun(id, requirements, "heuristic/v2", meta);
+  await logActivity(id, "extract", { version: diff.version, requirements: diff.requirement_count, deliverables: diff.deliverable_count, skipped_post_award: meta.skipped_post_award, skipped_evaluation: meta.skipped_evaluation });
+  return NextResponse.json({ backend, diff, meta }, { status: 201 });
 }
