@@ -1,345 +1,163 @@
-"use client";
-
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Shell from "../components/shell";
-import { Badge } from "../components/ui";
-import { matrix as demoMatrix, readiness, singleRows, tender as demoTender } from "../lib/demo-data";
-import type { Deliverable, Requirement, RunDiff } from "../lib/requirements";
 
-interface TenderOpt {
-  id: string;
-  title: string;
-  client: string | null;
-  page_count: number;
-}
+const STEPS = [
+  {
+    n: "1",
+    title: "Upload your tender",
+    text: "Drop in the ITT package — even 150+ scanned pages. TenderFlow parses every page and keeps a source link on everything it finds.",
+  },
+  {
+    n: "2",
+    title: "Work the matrix",
+    text: "Each requirement becomes one clear row with its tender reference, owner suggestion, and detail — Technical and Commercial kept apart, post-award clauses set aside.",
+  },
+  {
+    n: "3",
+    title: "Check and submit",
+    text: "Collect evidence, match your document library, run requirement-level QC, and watch readiness climb to a human-signed final review.",
+  },
+];
 
-const toneForType = (t: string) => (t === "conditional" ? "purple" : t === "form" ? "blue" : t === "action" ? "amber" : t === "evidence" ? "blue" : "grey");
-const toneForRisk = (r: string) => (r === "critical" ? "red" : r === "mandatory" ? "blue" : r === "conditional" ? "purple" : "grey");
-const toneForStatus = (s: string) =>
-  /received|complete|compliant/i.test(s) ? "green" : /progress|review/i.test(s) ? "amber" : "grey";
+const FEATURES = [
+  {
+    title: "Responsibility matrix, not reading marathon",
+    text: "Numbered, exact-worded rows with full detail blocks — the way an experienced bid controller would lay it out, with every row traceable to its tender page.",
+  },
+  {
+    title: "QC that reads the evidence",
+    text: "Uploaded a document? TenderFlow checks years, entities, signatures, templates and expiry against what was actually asked — review-biased, never falsely compliant.",
+  },
+  {
+    title: "Readiness you can defend",
+    text: "A weighted score backed by item lists, critical blockers surfaced first, conditional items never counted as missing. Export the final review for sign-off.",
+  },
+  {
+    title: "Your library, reused",
+    text: "Certificates and registrations matched to requirements with confidence and expiry badges. Same name plus entity starts a new version — never a silent duplicate.",
+  },
+];
 
-export default function MatrixPage() {
-  const [tenders, setTenders] = useState<TenderOpt[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [reqs, setReqs] = useState<Requirement[]>([]);
-  const [delivs, setDelivs] = useState<Deliverable[]>([]);
-  const [diff, setDiff] = useState<RunDiff | null>(null);
-  const [running, setRunning] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [fSection, setFSection] = useState("");
-  const [fType, setFType] = useState("");
-  const [fRisk, setFRisk] = useState("");
-  const [fStatus, setFStatus] = useState("");
-  const [fEnvelope, setFEnvelope] = useState("");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [editing, setEditing] = useState<Record<string, { title: string; owner: string; status: string }>>({});
-
-  useEffect(() => {
-    const h = (e: Event) => {
-      setQuery((e as CustomEvent<string>).detail ?? "");
-      setPage(0);
-    };
-    window.addEventListener("tf-search", h);
-    return () => window.removeEventListener("tf-search", h);
-  }, []);
-
-  const loadReqs = useCallback(async (id: string) => {
-    const r = await fetch(`/api/tenders/${id}/extract`).then((x) => x.json());
-    setReqs(r.requirements ?? []);
-    setDelivs(r.deliverables ?? []);
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/tenders")
-      .then((r) => r.json())
-      .then((j) => {
-        setTenders(j.tenders ?? []);
-        if (j.tenders?.length) {
-          setActiveId(j.tenders[0].id);
-          loadReqs(j.tenders[0].id);
-        }
-      })
-      .catch(() => {});
-  }, [loadReqs]);
-
-  const [meta, setMeta] = useState<{ weights?: { criterion: string; weight: string }[]; skipped_post_award?: number; skipped_evaluation?: number } | null>(null);
-
-  async function runExtraction() {
-    if (!activeId) return;
-    setRunning(true);
-    setNotice(null);
-    try {
-      const r = await fetch(`/api/tenders/${activeId}/extract`, { method: "POST" });
-      const j = await r.json();
-      if (!r.ok) {
-        setNotice(j.error ?? "Extraction failed.");
-      } else {
-        setDiff(j.diff);
-        setMeta(j.meta ?? null);
-        await loadReqs(activeId);
-      }
-    } catch {
-      setNotice("Extraction failed — network error.");
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  async function saveEdit(id: string) {
-    const e = editing[id];
-    if (!e) return;
-    const r = await fetch(`/api/requirements/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: e.title, owner: e.owner || null, status: e.status }),
-    });
-    if (r.ok) {
-      const j = await r.json();
-      setReqs((all) => all.map((x) => (x.id === id ? j.requirement : x)));
-      setEditing((s) => {
-        const c = { ...s };
-        delete c[id];
-        return c;
-      });
-    }
-  }
-
-  const sections = useMemo(() => [...new Set(reqs.map((r) => r.section))], [reqs]);
-  const q = query.toLowerCase();
-  const [fUnassigned, setFUnassigned] = useState(false);
-  const [page, setPage] = useState(0);
-  const PAGE_SIZE = 50;
-  const filtered = reqs
-    .filter(
-      (r) =>
-        (!fSection || r.section === fSection) &&
-        (!fEnvelope || (r.envelope ?? "Technical") === fEnvelope) &&
-        (!fType || r.type === fType) &&
-        (!fRisk || r.risk === fRisk) &&
-        (!fStatus || r.status === fStatus) &&
-        (!fUnassigned || !r.owner) &&
-        (!q || `${r.ref ?? ""} ${r.title} ${r.owner ?? ""} ${r.section}`.toLowerCase().includes(q))
-    )
-    .sort((a, b) => (a.envelope ?? "Technical") === (b.envelope ?? "Technical") ? 0 : (a.envelope ?? "Technical") === "Technical" ? -1 : 1);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const visible = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const delivCount = useMemo(() => {
-    const ids = new Set(filtered.map((r) => r.id));
-    return delivs.filter((d) => ids.has(d.requirement_id)).length;
-  }, [filtered, delivs]);
-  const missing = filtered.filter((r) => r.type !== "conditional" && !/received|complete/i.test(r.status)).length;
-
-  // No uploaded tenders yet → keep the Phase 0 demo matrix working.
-  if (tenders.length === 0) {
-    return (
-      <Shell>
-        <div className="mb-4 rounded-[10px] border border-[#E2E8F0] bg-white p-6 text-center">
-          <h1 className="text-xl font-extrabold">No tenders yet — upload one to build the matrix</h1>
-          <p className="mt-1 text-sm text-[#5B6472]">Go to <Link href="/overview" className="font-bold underline">Overview → Upload ITT package</Link>, then come back and run extraction. Meanwhile the <span className="font-mono">design.html</span> demo still shows the target look.</p>
-        </div>
-        <DemoMatrix />
-      </Shell>
-    );
-  }
-
+export default function LandingPage() {
   return (
-    <Shell>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <label className="text-sm font-bold">Tender:</label>
-        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setPage(0); loadReqs(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
-          {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title} ({t.page_count}p)</option>))}
-        </select>
-        <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50">
-          {running ? "Extracting…" : reqs.length ? "Re-run extraction" : "Run extraction"}
-        </button>
-        {diff && <span className="text-sm text-[#5B6472]">v{diff.version}: +{diff.added} new · −{diff.removed} removed · {diff.carried_edited} hand-edits kept</span>}
-        {meta && ((meta.weights?.length ?? 0) > 0 || (meta.skipped_post_award ?? 0) > 0) && (
-          <span className="text-sm text-[#5B6472]">
-            · eval weights: {(meta.weights ?? []).map((w) => `${w.criterion} ${w.weight}`).slice(0, 3).join("; ")}
-            {(meta.weights?.length ?? 0) > 3 ? "…" : ""} · post-award set aside: {meta.skipped_post_award ?? 0}
-          </span>
-        )}
-      </div>
-      {notice && <p className="mb-3 text-sm font-bold text-[#DC2626]">{notice}</p>}
-
-      {reqs.length === 0 ? (
-        <div className="mb-4 rounded-[10px] border border-[#E2E8F0] bg-white p-6 text-center text-sm">
-          <strong>No requirements extracted yet.</strong> Click <strong>Run extraction</strong> to build the responsibility matrix from the parsed pages (heuristic v1 — you verify every row).
+    <div className="min-h-screen bg-[#F6F7F9] text-[#111827]">
+      {/* Top bar */}
+      <header className="border-b border-[#E2E8F0] bg-white">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-3.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F5B301] text-lg font-extrabold text-[#0A2C4E]">T</div>
+          <div className="text-lg font-extrabold text-[#0A2C4E]">
+            Tender<span className="text-[#F5B301]">Flow</span>
+          </div>
+          <nav className="ml-auto flex items-center gap-2 text-sm font-semibold">
+            <Link href="/workspace" className="rounded-lg px-3 py-2 text-[#0A2C4E] hover:bg-[#EEF1F4]">Workspace</Link>
+            <Link href="/upload" className="rounded-lg bg-[#1D4C8D] px-4 py-2.5 font-bold text-white hover:bg-[#14365F]">
+              Upload your Tender
+            </Link>
+          </nav>
         </div>
-      ) : (
-        <>
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-            <select value={fSection} onChange={(e) => { setFSection(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by section">
-              <option value="">All sections</option>{sections.map((s) => (<option key={s}>{s}</option>))}
-            </select>
-            <select value={fEnvelope} onChange={(e) => { setFEnvelope(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by envelope">
-              <option value="">Technical + Commercial</option>
-              <option value="Technical">Technical only</option>
-              <option value="Commercial">Commercial only</option>
-            </select>
-            <select value={fType} onChange={(e) => { setFType(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by type">
-              <option value="">All types</option>{["doc", "info", "form", "evidence", "action", "conditional"].map((t) => (<option key={t}>{t}</option>))}
-            </select>
-            <select value={fRisk} onChange={(e) => { setFRisk(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by risk">
-              <option value="">All risks</option>{["critical", "mandatory", "conditional", "supporting", "info"].map((t) => (<option key={t}>{t}</option>))}
-            </select>
-            <select value={fStatus} onChange={(e) => { setFStatus(e.target.value); setPage(0); }} className="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5" aria-label="Filter by status">
-              <option value="">All statuses</option>{["outstanding", "in-progress", "received", "complete"].map((t) => (<option key={t}>{t}</option>))}
-            </select>
-            <label className="flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-2 py-1.5">
-              <input type="checkbox" checked={fUnassigned} onChange={(e) => { setFUnassigned(e.target.checked); setPage(0); }} aria-label="Show unassigned only" />
-              Unassigned
-            </label>
-            <span className="ml-auto text-[#5B6472]">{filtered.length} requirements · {delivCount} deliverables · {missing} missing (conditional excluded)</span>
-          </div>
-          {pageCount > 1 && (
-            <div className="mb-3 flex items-center gap-2 text-sm">
-              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0} className="rounded border border-[#E2E8F0] bg-white px-3 py-1.5 font-bold disabled:opacity-40">← Prev</button>
-              <span className="text-[#5B6472]">Page {safePage + 1} of {pageCount} (50 per page)</span>
-              <button onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1} className="rounded border border-[#E2E8F0] bg-white px-3 py-1.5 font-bold disabled:opacity-40">Next →</button>
-            </div>
-          )}
+      </header>
 
-          <div className="mb-4 overflow-hidden rounded-[10px] border border-[#E2E8F0] bg-white">
-            <div className="overflow-x-auto">
-              <table className="matrix-table w-full min-w-[960px] text-[14.5px]" aria-label="Requirements matrix">
-                <thead><tr>{["Section", "Requirement / Deliverables", "Owner", "Due", "Status", "QC", "Source"].map((h) => (<th key={h} className="px-3.5 py-3 text-left text-xs uppercase tracking-wider">{h}</th>))}</tr></thead>
-                <tbody>
-                  {visible.map((r) => {
-                    const items = delivs.filter((d) => d.requirement_id === r.id);
-                    const isCollapsed = !!collapsed[r.id];
-                    const e = editing[r.id];
-                    return (
-                      <>
-                        <tr key={r.id} className="border-t-2 border-[#CBD5E1] bg-white">
-                          <td className="px-3.5 py-3.5 align-top">
-                            <Badge tone="blue">{r.section}</Badge>
-                            <div className="mt-1"><Badge tone={(r.envelope ?? "Technical") === "Commercial" ? "amber" : "grey"}>{r.envelope ?? "Technical"}</Badge></div>
-                          </td>
-                          <td className="px-3.5 py-3.5 align-top">
-                            <button onClick={() => setCollapsed((s) => ({ ...s, [r.id]: !s[r.id] }))} className="font-extrabold">
-                              {isCollapsed ? "▸" : "▾"}{" "}
-                              {r.ref && <span className="mr-1 rounded bg-[#0A2C4E] px-1.5 py-0.5 font-mono text-xs font-bold text-white">{r.ref}</span>}
-                              {r.title}
-                            </button>
-                            <div className="mt-1 flex flex-wrap gap-1.5">
-                              <Badge tone={r.kind === "condition" ? "purple" : r.kind === "commercial" ? "amber" : "grey"}>{r.kind}</Badge>
-                              <Badge tone={toneForType(r.type)}>{r.type}</Badge>
-                              <Badge tone={toneForRisk(r.risk)}>{r.risk}</Badge>
-                              {r.edited && <Badge tone="amber">✎ hand-edited</Badge>}
-                            </div>
-                            {r.description && r.description !== r.title && (
-                              <div className="mt-1 whitespace-pre-wrap text-[13px] text-[#4B5563]">{r.description}</div>
-                            )}
-                            <div className="mt-1 text-[13px] text-[#4B5563]">{items.length > 0 ? `${items.length} collectable item${items.length === 1 ? "" : "s"}` : "no separate collectables — deliver as one"} · {r.risk_reason}</div>
-                            {e ? (
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                <input value={e.title} onChange={(ev) => setEditing((s) => ({ ...s, [r.id]: { ...e, title: ev.target.value } }))} className="w-64 rounded border border-[#E2E8F0] px-2 py-1 text-sm" aria-label="Edit title" />
-                                <input value={e.owner} onChange={(ev) => setEditing((s) => ({ ...s, [r.id]: { ...e, owner: ev.target.value } }))} placeholder="Owner" className="w-32 rounded border border-[#E2E8F0] px-2 py-1 text-sm" aria-label="Edit owner" />
-                                <select value={e.status} onChange={(ev) => setEditing((s) => ({ ...s, [r.id]: { ...e, status: ev.target.value } }))} className="rounded border border-[#E2E8F0] px-2 py-1 text-sm" aria-label="Edit status">
-                                  {["outstanding", "in-progress", "received", "complete"].map((s) => (<option key={s}>{s}</option>))}
-                                </select>
-                                <button onClick={() => saveEdit(r.id)} className="rounded bg-[#1D4C8D] px-3 py-1 text-sm font-bold text-white">Save</button>
-                                <button onClick={() => setEditing((s) => { const c = { ...s }; delete c[r.id]; return c; })} className="rounded border border-[#E2E8F0] px-3 py-1 text-sm">Cancel</button>
-                              </div>
-                            ) : (
-                              <button onClick={() => setEditing((s) => ({ ...s, [r.id]: { title: r.title, owner: r.owner ?? "", status: r.status } }))} className="mt-1 text-xs font-bold text-[#1D4C8D] underline">Edit</button>
-                            )}
-                          </td>
-                          <td className="px-3.5 py-3.5 align-top">
-                            {r.owner ?? <span className="text-[#5B6472]">—</span>}
-                            {r.suggested_owner && !r.owner ? (
-                              <span className="block text-xs text-[#5B6472]">
-                                suggested: <strong>{r.suggested_owner}</strong>{" "}
-                                <button
-                                  onClick={async () => {
-                                    const res = await fetch(`/api/requirements/${r.id}/assign`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ owner: r.suggested_owner }),
-                                    });
-                                    if (res.ok) {
-                                      const j = await res.json();
-                                      setReqs((all) => all.map((x) => (x.id === r.id ? j.requirement : x)));
-                                    }
-                                  }}
-                                  className="font-bold text-[#1D4C8D] underline"
-                                >
-                                  Accept
-                                </button>
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="px-3.5 py-3.5 align-top">{r.due_date ?? "—"}</td>
-                          <td className="px-3.5 py-3.5 align-top"><Badge tone={toneForStatus(r.status)}>{r.status}</Badge></td>
-                          <td className="px-3.5 py-3.5 align-top"><Badge tone="grey">○ Not reviewed</Badge></td>
-                          <td className="px-3.5 py-3.5 align-top">{r.source_page != null ? <span className="whitespace-nowrap rounded-md border border-[#E2E8F0] bg-[#F1F5F9] px-1.5 py-0.5 font-mono text-xs">p.{r.source_page}</span> : "—"}</td>
-                        </tr>
-                        {!isCollapsed && items.map((d) => (
-                          <tr key={d.id} className="border-t border-[#E2E8F0] bg-[#F4F6F8]">
-                            <td className="px-3.5 py-3.5"></td>
-                            <td className="px-3.5 py-3.5">{d.title} <span className="text-[13px] text-[#4B5563]">{d.expected_detail ?? ""}</span></td>
-                            <td className="px-3.5 py-3.5">{d.owner ?? "—"}</td>
-                            <td className="px-3.5 py-3.5">{d.due_date ?? "—"}</td>
-                            <td className="px-3.5 py-3.5"><Badge tone={toneForStatus(d.status)}>{d.status}</Badge></td>
-                            <td className="px-3.5 py-3.5"><Badge tone="grey">○ Not reviewed</Badge></td>
-                            <td className="px-3.5 py-3.5"></td>
-                          </tr>
-                        ))}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+      {/* Hero */}
+      <section className="hero-band text-white">
+        <div className="mx-auto max-w-6xl px-5 py-16 md:py-24">
+          <div className="flex items-center gap-2.5 text-xs font-extrabold uppercase tracking-[0.1em] text-[#FFE08A]">
+            <span className="inline-block h-1 w-[34px] rounded bg-[#F5B301]" />
+            AI-powered tender workspace for oil &amp; gas bids
           </div>
-        </>
-      )}
-    </Shell>
-  );
-}
-
-function DemoMatrix() {
-  return (
-    <>
-      <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {readiness.map((c) => (
-          <div key={c.label} className="rounded-[10px] border border-[#E2E8F0] bg-white p-3.5">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#5B6472]">{c.label}</div>
-            <div className="my-1 text-[26px] font-extrabold">{c.value}</div>
-            <div className="text-[13px] text-[#5B6472]">{c.sub}</div>
+          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight md:text-5xl">
+            Turn a 200-page tender into a bid-ready matrix in minutes.
+          </h1>
+          <p className="mt-4 max-w-2xl text-lg text-[#C9D6E5]">
+            TenderFlow reads your ITT, builds the responsibility matrix with exact tender
+            wording, chases owners, matches your document library, and checks every
+            requirement before submission. AI suggests — <strong className="text-white">you decide</strong>.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/upload"
+              className="rounded-lg bg-[#F5B301] px-7 py-3.5 text-base font-extrabold text-[#0A2C4E] hover:bg-[#FFC81A]"
+            >
+              Upload your Tender
+            </Link>
+            <Link
+              href="/workspace"
+              className="rounded-lg border border-white/30 px-7 py-3.5 text-base font-bold text-white hover:bg-white/10"
+            >
+              Open the workspace
+            </Link>
           </div>
-        ))}
-      </div>
-      <div className="mb-4 overflow-hidden rounded-[10px] border border-[#E2E8F0] bg-white">
-        <div className="border-b border-[#E2E8F0] p-3.5"><h2 className="text-base font-bold">Demo matrix — {demoTender.client} (target look)</h2></div>
-        <div className="overflow-x-auto">
-          <table className="matrix-table w-full min-w-[960px] text-[14.5px]" aria-label="Demo requirements matrix">
-            <thead><tr>{["Section", "Requirement", "Owner", "Status"].map((h) => (<th key={h} className="px-3.5 py-3 text-left text-xs uppercase tracking-wider">{h}</th>))}</tr></thead>
-            <tbody>
-              {demoMatrix.map((g) => (
-                <tr key={g.id} className="border-t border-[#E2E8F0] bg-white">
-                  <td className="px-3.5 py-3.5"><Badge tone={g.sectionTone}>{g.section}</Badge></td>
-                  <td className="px-3.5 py-3.5 font-bold">{g.title}<span className="block text-[13px] font-normal text-[#4B5563]">{g.subtitle}</span></td>
-                  <td className="px-3.5 py-3.5">{g.owner}</td>
-                  <td className="px-3.5 py-3.5"><Badge tone={g.statusTone}>{g.status}</Badge></td>
-                </tr>
-              ))}
-              {singleRows.map((r) => (
-                <tr key={r.title} className="border-t border-[#E2E8F0] bg-white">
-                  <td className="px-3.5 py-3.5"><Badge tone={r.tone}>{r.section}</Badge></td>
-                  <td className="px-3.5 py-3.5 font-bold">{r.title}</td>
-                  <td className="px-3.5 py-3.5">{r.owner}</td>
-                  <td className="px-3.5 py-3.5"><Badge tone="grey">{r.status}</Badge></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p className="mt-4 text-sm text-[#9FB2C8]">
+            PDF in, matrix out — free while in local pilot. No account, no cloud, your files never leave this machine.
+          </p>
         </div>
-      </div>
-    </>
+      </section>
+
+      {/* Chain strip */}
+      <section className="border-b border-[#E2E8F0] bg-white">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-5 py-4 text-sm font-bold text-[#0A2C4E]">
+          {["Upload", "Understand", "Assign", "Collect", "Match", "QC", "Resolve", "Submit"].map((s, i, a) => (
+            <span key={s} className="flex items-center gap-3">
+              <span>{s}</span>
+              {i < a.length - 1 && <span className="text-[#F5B301]">→</span>}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="mx-auto max-w-6xl px-5 py-14">
+        <h2 className="text-2xl font-extrabold text-[#0A2C4E]">From ITT to submission in three moves</h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {STEPS.map((s) => (
+            <div key={s.n} className="rounded-[10px] border border-[#E2E8F0] bg-white p-5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0A2C4E] text-base font-extrabold text-[#F5B301]">
+                {s.n}
+              </div>
+              <h3 className="mt-3 text-lg font-bold">{s.title}</h3>
+              <p className="mt-1 text-sm text-[#5B6472]">{s.text}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6">
+          <Link href="/upload" className="rounded-lg bg-[#1D4C8D] px-6 py-3 text-sm font-bold text-white hover:bg-[#14365F]">
+            Upload your Tender — start step 1
+          </Link>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="border-t border-[#E2E8F0] bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-14">
+          <h2 className="text-2xl font-extrabold text-[#0A2C4E]">Built like a bid controller thinks</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="rounded-[10px] border border-[#E2E8F0] bg-[#F9FAFB] p-5">
+                <h3 className="text-base font-bold">{f.title}</h3>
+                <p className="mt-1 text-sm text-[#5B6472]">{f.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="hero-band text-white">
+        <div className="mx-auto max-w-6xl px-5 py-14 text-center">
+          <h2 className="text-3xl font-extrabold">Your next bid starts with one upload.</h2>
+          <p className="mx-auto mt-2 max-w-xl text-[#C9D6E5]">
+            See your own tender as a numbered, exact-worded responsibility matrix — minutes from now.
+          </p>
+          <Link
+            href="/upload"
+            className="mt-6 inline-block rounded-lg bg-[#F5B301] px-8 py-3.5 text-base font-extrabold text-[#0A2C4E] hover:bg-[#FFC81A]"
+          >
+            Upload your Tender
+          </Link>
+        </div>
+      </section>
+
+      <footer className="mx-auto max-w-6xl px-5 py-6 text-xs text-[#5B6472]">
+        TenderFlow — local pilot build. Matching suggests documents; it never approves compliance. Final submission always needs human review.
+      </footer>
+    </div>
   );
 }

@@ -145,7 +145,7 @@ export default function OverviewPage() {
         {!uploading && progress.startsWith("Done") && (
           <div className="mt-1 rounded-lg border border-[#F5B301] bg-[#FFF6DE] p-3 text-sm">
             <strong>Next step:</strong> go to the{" "}
-            <Link href="/" className="font-bold text-[#1D4C8D] underline">Matrix → Run extraction</Link>,
+            <Link href="/workspace" className="font-bold text-[#1D4C8D] underline">Matrix → Run extraction</Link>,
             then Assignments → QC → Checklist. Each step picks up where this one left off.
           </div>
         )}
