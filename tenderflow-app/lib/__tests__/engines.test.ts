@@ -5,6 +5,7 @@ import { extractRequirements } from "../extract";
 import { expiryBadge, scoreMatch } from "../matching";
 import { refineRisk, runQc } from "../qc";
 import { computeReadiness, finalReview } from "../readiness";
+import { mergeExtraction } from "../requirements";
 
 function pages(...texts: string[]) {
   return texts.map((text, i) => ({ page_no: i + 1, text, char_count: text.length }));
@@ -116,6 +117,41 @@ describe("extractRequirements", () => {
       ])
     );
   });
+
+  it("keeps numbered ref and exact tender wording as the title", () => {
+    const { requirements: out } = extractRequirements(
+      pages("4.1 Mandatory Bid Content. • CVs of the named lead analyst, checker and any third-party verifier.")
+    );
+    expect(out.length).toBe(1);
+    expect(out[0].ref).toBe("4.1");
+    expect(out[0].title).toBe("CVs of the named lead analyst, checker and any third-party verifier.");
+  });
+
+  it("joins qualifications into the same row instead of new rows", () => {
+    const { requirements: out } = extractRequirements(
+      pages("• Reference projects: free-standing conductors. General offshore structural experience alone is not responsive to this scope.")
+    );
+    expect(out.length).toBe(1);
+    expect(out[0].description).toMatch(/not responsive/);
+  });
+
+  it("never creates echo deliverables for single-entity rows", () => {
+    const { requirements: out } = extractRequirements(
+      pages("Tenderers must provide a valid NUPRC certificate before mobilisation.")
+    );
+    expect(out.length).toBe(1);
+    expect(out[0].deliverables.length).toBe(0);
+  });
+
+  it("still splits genuinely distinct collectables", () => {
+    const { requirements: out } = extractRequirements(
+      pages("Tenderers must provide CO2 and CO7 certificates.")
+    );
+    expect(out.length).toBe(1);
+    expect(out[0].deliverables.map((d) => d.title)).toEqual(
+      expect.arrayContaining(["CO2 certificate", "CO7 certificate"])
+    );
+  });
 });
 
 describe("matching", () => {
@@ -198,5 +234,39 @@ describe("readiness", () => {
     const { groups, ready } = finalReview(items);
     expect(ready).toBe(false);
     expect(groups.find((g) => g.group === "Commercial" || g.group === "Requirements")!.state).not.toBe("pass");
+  });
+});
+
+describe("mergeExtraction ownership", () => {
+  const ext = (over = {}) => ({
+    ref: "4.1",
+    section: "Technical",
+    envelope: "Technical" as const,
+    kind: "requirement",
+    title: "CVs of the named lead analyst.",
+    description: "CVs of the named lead analyst.",
+    type: "doc",
+    risk: "mandatory",
+    risk_reason: "Listed in Mandatory Bid Content.",
+    suggested_owner: "HR/Operations",
+    source_page: 20,
+    source_span: "CVs of the named lead analyst.",
+    deliverables: [],
+    ...over,
+  });
+
+  it("keeps owner empty until a human accepts the suggestion", () => {
+    const { reqs } = mergeExtraction([], [], "t1", [ext()], 1);
+    expect(reqs[0].owner).toBeNull();
+    expect(reqs[0].suggested_owner).toBe("HR/Operations");
+  });
+
+  it("resets unconfirmed owners on re-run but keeps hand edits", () => {
+    const first = mergeExtraction([], [], "t1", [ext()], 1).reqs;
+    const second = mergeExtraction(first, [], "t1", [ext()], 2).reqs;
+    expect(second.find((r) => !r.superseded)!.owner).toBeNull();
+    const edited = first.map((r) => ({ ...r, owner: "Ada", edited: true }));
+    const third = mergeExtraction(edited, [], "t1", [ext()], 3).reqs;
+    expect(third.find((r) => !r.superseded)!.owner).toBe("Ada");
   });
 });

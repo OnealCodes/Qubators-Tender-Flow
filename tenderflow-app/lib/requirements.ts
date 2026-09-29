@@ -10,6 +10,8 @@ export interface Requirement {
   id: string;
   tender_id: string;
   run_version: number;
+  ref: string | null;
+  kind: string;
   section: string;
   envelope: string;
   title: string;
@@ -79,6 +81,8 @@ export function mergeExtraction(
       const kept: Requirement = {
         ...prev,
         run_version: version,
+        ref: prev.edited ? prev.ref : e.ref,
+        kind: prev.edited ? prev.kind : e.kind,
         section: prev.edited ? prev.section : e.section,
         envelope: prev.edited ? prev.envelope : (e.envelope ?? "Technical"),
         title: prev.edited ? prev.title : e.title,
@@ -87,7 +91,9 @@ export function mergeExtraction(
         risk: prev.edited ? prev.risk : e.risk,
         risk_reason: e.risk_reason,
         suggested_owner: e.suggested_owner,
-        owner: prev.edited ? prev.owner : (prev.owner ?? e.suggested_owner),
+        // Suggestions stay suggestions: only a hand-confirmed owner survives
+        // a re-run. Anything merely inferred resets to empty.
+        owner: prev.edited ? prev.owner : null,
         source_page: e.source_page,
         source_span: e.source_span,
         superseded: false,
@@ -107,16 +113,17 @@ export function mergeExtraction(
       const id = rid("r");
       added++;
       reqs.push({
-        id, tender_id: tenderId, run_version: version, section: e.section,
+        id, tender_id: tenderId, run_version: version, ref: e.ref, kind: e.kind,
+        section: e.section,
         envelope: e.envelope ?? "Technical",
         title: e.title, description: e.description, type: e.type, risk: e.risk,
         risk_reason: e.risk_reason, suggested_owner: e.suggested_owner,
-        owner: e.suggested_owner, due_date: null, status: "outstanding",
+        owner: null, due_date: null, status: "outstanding",
         source_page: e.source_page, source_span: e.source_span,
         edited: false, superseded: false,
       });
       for (const d of e.deliverables) {
-        delivs.push({ id: rid("d"), requirement_id: id, title: d.title, expected_detail: d.expected_detail, status: "outstanding", owner: e.suggested_owner, due_date: null });
+        delivs.push({ id: rid("d"), requirement_id: id, title: d.title, expected_detail: d.expected_detail, status: "outstanding", owner: null, due_date: null });
       }
     }
   }
@@ -169,6 +176,7 @@ async function pool() {
 function toReq(row: Record<string, unknown>): Requirement {
   return {
     id: String(row.id), tender_id: String(row.tender_id), run_version: Number(row.run_version),
+    ref: (row.ref as string) ?? null, kind: String(row.kind ?? "requirement"),
     section: String(row.section ?? "General"), envelope: String(row.envelope ?? "Technical"), title: String(row.title ?? ""),
     description: (row.description as string) ?? null, type: String(row.type ?? "doc"),
     risk: String(row.risk ?? "mandatory"), risk_reason: (row.risk_reason as string) ?? null,
@@ -228,7 +236,7 @@ export async function getActive(tenderId: string): Promise<{ requirements: Requi
   const doc = await readDoc();
   const reqs = doc.requirements
     .filter((x) => x.tender_id === tenderId && !x.superseded)
-    .map((x) => ({ ...x, envelope: x.envelope ?? "Technical" }));
+    .map((x) => ({ ...x, envelope: x.envelope ?? "Technical", ref: x.ref ?? null, kind: x.kind ?? "requirement" }));
   const ids = new Set(reqs.map((x) => x.id));
   return { requirements: reqs, deliverables: doc.deliverables.filter((d) => ids.has(d.requirement_id)), backend: "local" };
 }
@@ -248,10 +256,10 @@ export async function saveRun(
         const { reqs, delivs, diff } = mergeExtraction(er.rows.map(toReq), ed.rows.map(toDeliv), tenderId, extracted, version);
         for (const r of reqs) {
           await p.query(
-            `INSERT INTO requirements (id,tender_id,run_version,section,envelope,title,description,type,risk,risk_reason,suggested_owner,owner,due_date,status,source_page,source_span,edited,superseded)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-             ON CONFLICT (id) DO UPDATE SET run_version=$3,section=$4,envelope=$5,title=$6,description=$7,type=$8,risk=$9,risk_reason=$10,suggested_owner=$11,owner=$12,due_date=$13,status=$14,source_page=$15,source_span=$16,edited=$17,superseded=$18`,
-            [r.id, r.tender_id, r.run_version, r.section, r.envelope, r.title, r.description, r.type, r.risk, r.risk_reason, r.suggested_owner, r.owner, r.due_date, r.status, r.source_page, r.source_span, r.edited, r.superseded]
+            `INSERT INTO requirements (id,tender_id,run_version,ref,kind,section,envelope,title,description,type,risk,risk_reason,suggested_owner,owner,due_date,status,source_page,source_span,edited,superseded)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+             ON CONFLICT (id) DO UPDATE SET run_version=$3,ref=$4,kind=$5,section=$6,envelope=$7,title=$8,description=$9,type=$10,risk=$11,risk_reason=$12,suggested_owner=$13,owner=$14,due_date=$15,status=$16,source_page=$17,source_span=$18,edited=$19,superseded=$20`,
+            [r.id, r.tender_id, r.run_version, r.ref, r.kind, r.section, r.envelope, r.title, r.description, r.type, r.risk, r.risk_reason, r.suggested_owner, r.owner, r.due_date, r.status, r.source_page, r.source_span, r.edited, r.superseded]
           );
         }
         await p.query("DELETE FROM deliverables WHERE requirement_id IN (SELECT id FROM requirements WHERE tender_id=$1)", [tenderId]);
@@ -286,7 +294,7 @@ export async function saveRun(
   return { diff, backend: "local" };
 }
 
-const PATCHABLE = ["title", "owner", "due_date", "status", "type", "risk", "section", "envelope"] as const;
+const PATCHABLE = ["title", "owner", "due_date", "status", "type", "risk", "section", "envelope", "ref", "kind"] as const;
 
 export async function updateRequirement(id: string, patch: Record<string, unknown>): Promise<Requirement | null> {
   const clean: Record<string, unknown> = {};

@@ -120,7 +120,7 @@ export default function MatrixPage() {
         (!fRisk || r.risk === fRisk) &&
         (!fStatus || r.status === fStatus) &&
         (!fUnassigned || !r.owner) &&
-        (!q || `${r.title} ${r.owner ?? ""} ${r.section}`.toLowerCase().includes(q))
+        (!q || `${r.ref ?? ""} ${r.title} ${r.owner ?? ""} ${r.section}`.toLowerCase().includes(q))
     )
     .sort((a, b) => (a.envelope ?? "Technical") === (b.envelope ?? "Technical") ? 0 : (a.envelope ?? "Technical") === "Technical" ? -1 : 1);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -221,14 +221,20 @@ export default function MatrixPage() {
                           </td>
                           <td className="px-3.5 py-3.5 align-top">
                             <button onClick={() => setCollapsed((s) => ({ ...s, [r.id]: !s[r.id] }))} className="font-extrabold">
-                              {isCollapsed ? "▸" : "▾"} {r.title}
+                              {isCollapsed ? "▸" : "▾"}{" "}
+                              {r.ref && <span className="mr-1 rounded bg-[#0A2C4E] px-1.5 py-0.5 font-mono text-xs font-bold text-white">{r.ref}</span>}
+                              {r.title}
                             </button>
                             <div className="mt-1 flex flex-wrap gap-1.5">
+                              <Badge tone={r.kind === "condition" ? "purple" : r.kind === "commercial" ? "amber" : "grey"}>{r.kind}</Badge>
                               <Badge tone={toneForType(r.type)}>{r.type}</Badge>
                               <Badge tone={toneForRisk(r.risk)}>{r.risk}</Badge>
                               {r.edited && <Badge tone="amber">✎ hand-edited</Badge>}
                             </div>
-                            <div className="mt-1 text-[13px] text-[#4B5563]">{items.length} deliverable{items.length === 1 ? "" : "s"}{r.risk_reason ? ` · ${r.risk_reason}` : ""}</div>
+                            {r.description && r.description !== r.title && (
+                              <div className="mt-1 whitespace-pre-wrap text-[13px] text-[#4B5563]">{r.description}</div>
+                            )}
+                            <div className="mt-1 text-[13px] text-[#4B5563]">{items.length > 0 ? `${items.length} collectable item${items.length === 1 ? "" : "s"}` : "no separate collectables — deliver as one"} · {r.risk_reason}</div>
                             {e ? (
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <input value={e.title} onChange={(ev) => setEditing((s) => ({ ...s, [r.id]: { ...e, title: ev.target.value } }))} className="w-64 rounded border border-[#E2E8F0] px-2 py-1 text-sm" aria-label="Edit title" />
@@ -243,7 +249,30 @@ export default function MatrixPage() {
                               <button onClick={() => setEditing((s) => ({ ...s, [r.id]: { title: r.title, owner: r.owner ?? "", status: r.status } }))} className="mt-1 text-xs font-bold text-[#1D4C8D] underline">Edit</button>
                             )}
                           </td>
-                          <td className="px-3.5 py-3.5 align-top">{r.owner ?? <span className="text-[#5B6472]">—</span>}{r.suggested_owner && !r.owner ? <span className="block text-xs text-[#5B6472]">suggested: {r.suggested_owner}</span> : null}</td>
+                          <td className="px-3.5 py-3.5 align-top">
+                            {r.owner ?? <span className="text-[#5B6472]">—</span>}
+                            {r.suggested_owner && !r.owner ? (
+                              <span className="block text-xs text-[#5B6472]">
+                                suggested: <strong>{r.suggested_owner}</strong>{" "}
+                                <button
+                                  onClick={async () => {
+                                    const res = await fetch(`/api/requirements/${r.id}/assign`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ owner: r.suggested_owner }),
+                                    });
+                                    if (res.ok) {
+                                      const j = await res.json();
+                                      setReqs((all) => all.map((x) => (x.id === r.id ? j.requirement : x)));
+                                    }
+                                  }}
+                                  className="font-bold text-[#1D4C8D] underline"
+                                >
+                                  Accept
+                                </button>
+                              </span>
+                            ) : null}
+                          </td>
                           <td className="px-3.5 py-3.5 align-top">{r.due_date ?? "—"}</td>
                           <td className="px-3.5 py-3.5 align-top"><Badge tone={toneForStatus(r.status)}>{r.status}</Badge></td>
                           <td className="px-3.5 py-3.5 align-top"><Badge tone="grey">○ Not reviewed</Badge></td>
