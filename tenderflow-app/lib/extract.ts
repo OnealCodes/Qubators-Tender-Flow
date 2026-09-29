@@ -348,7 +348,12 @@ export function extractRequirements(pages: ParsedPage[]): { requirements: Extrac
   };
 
   for (const page of pages) {
-    for (let seg of splitSegments(page.text)) {
+    // Strip running page headers first ("Document No. ... Page 20 of 21"):
+    // otherwise they glue onto the section header that follows and the
+    // whole segment gets skipped as a page marker — taking the section
+    // context (and its bullets) down with it.
+    const cleanText = page.text.replace(/^[\s\S]*?Document No\.[\s\S]*?Page \d+ of \d+\s*/i, "");
+    for (let seg of splitSegments(cleanText)) {
       // Strip leading page numbers ("35 VERY IMPORTANT...").
       seg = seg.replace(/^\d{1,3}\s+(?=[A-Z•])/, "").trim();
       if (seg.length < 20) continue;
@@ -366,6 +371,10 @@ export function extractRequirements(pages: ParsedPage[]): { requirements: Extrac
       if (refHit && seg.length < 160) {
         closeGroup();
         refContext = refHit[1];
+        // A header can trail a deeper ref ("4.0 TENDER REQUIREMENTS 4.1
+        // Mandatory Bid Content"): the LAST ref wins as context.
+        const trailing = [...seg.matchAll(/(?:^|\s)(\d+\.\d+(?:\.\d+)*)\s+(?=[A-Z])/g)].map((m) => m[1]);
+        if (trailing.length > 0) refContext = trailing[trailing.length - 1];
         const zoneHit0 = ZONE_HEADERS.find((z) => z.match.test(head));
         if (zoneHit0) zone = zoneHit0.section;
         const zoneSet0 = ZONE_SETTERS.find((z) => z.match.test(head));

@@ -127,6 +127,16 @@ describe("extractRequirements", () => {
     expect(out[0].title).toBe("CVs of the named lead analyst, checker and any third-party verifier.");
   });
 
+  it("gives trailing refs in combined headers to the bullets below", () => {
+    const { requirements: out } = extractRequirements(
+      pages("4.0 TENDER REQUIREMENTS 4.1 Mandatory Bid Content • Method statement per Section 2.21. • Software proposed for each analysis type.")
+    );
+    expect(out.length).toBe(2);
+    expect(out.every((r) => r.ref === "4.1")).toBe(true);
+    expect(out[0].title).toMatch(/Method statement/);
+    expect(out[1].title).toMatch(/Software proposed/);
+  });
+
   it("joins qualifications into the same row instead of new rows", () => {
     const { requirements: out } = extractRequirements(
       pages("• Reference projects: free-standing conductors. General offshore structural experience alone is not responsive to this scope.")
