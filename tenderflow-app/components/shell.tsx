@@ -39,18 +39,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </button>
           ))}
         </nav>
-        <div className="rounded-[10px] border border-white/15 bg-white/5 p-3">
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-300">Colour palette</h4>
-          <div className="grid grid-cols-2 gap-2 text-[11px] text-white">
-            {[["#0A2C4E", "Navy"], ["#F5B301", "Gold"], ["#1D4C8D", "Primary Blue"], ["#16A34A", "Compliant"], ["#D97706", "Review"], ["#DC2626", "Risk"]].map(([hex, name]) => (
-              <div key={name} className="rounded-lg p-2" style={{ background: hex, color: name === "Gold" ? "#0A2C4E" : "#fff" }}>{name}<span className="block font-mono text-[10px] opacity-90">{hex}</span></div>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-[10px] border border-white/15 bg-white/5 p-3 text-[13px]">
-          <span className="rounded bg-[#F5B301] px-1.5 py-0.5 text-[11px] font-bold text-[#0A2C4E]">PHASE 1</span>
-          <p className="mt-2 text-slate-300">Routed workspace + demo data. No database yet.</p>
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -67,7 +55,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
         <div className="mx-auto w-full max-w-[1240px] px-5 py-5">
           <div className="mb-4 rounded-[10px] border border-[#F0D489] bg-[#FFF8E6] px-3.5 py-2.5 text-[13px] text-[#6B4E00]">
-            <strong>Routed workspace — demonstration data only.</strong> No backend, database, or AI is wired up yet.
+            <strong>Tender workspace — local pilot.</strong> AI suggests; you decide. Matching suggests documents; it never approves compliance.
           </div>
           <div className="mb-3.5 flex flex-wrap gap-1.5 border-b border-[#E2E8F0]" role="tablist" aria-label="Workspace">
             {tabs.map((t) => {

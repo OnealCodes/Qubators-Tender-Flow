@@ -27,6 +27,7 @@ export default function MatrixPage() {
   const [diff, setDiff] = useState<RunDiff | null>(null);
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [fSection, setFSection] = useState("");
   const [fType, setFType] = useState("");
@@ -101,6 +102,7 @@ export default function MatrixPage() {
     if (!activeId) return;
     setRunning(true);
     setNotice(null);
+    setAiNotice(null);
     try {
       const r = await fetch(`/api/tenders/${activeId}/extract`, { method: "POST" });
       const j = await r.json();
@@ -109,6 +111,12 @@ export default function MatrixPage() {
       } else {
         setDiff(j.diff);
         setMeta(j.meta ?? null);
+        if (j.ai?.ran) {
+          const from = Array.isArray(j.meta?.ai_structured_from) ? j.meta.ai_structured_from.join(", §") : "";
+          setAiNotice(`AI-structured${from ? ` from §${from}` : ""} — exact tender wording, verified.`);
+        } else if (j.ai?.reason) {
+          setAiNotice(j.ai.reason);
+        }
         await loadReqs(activeId);
       }
     } catch {
@@ -268,13 +276,13 @@ export default function MatrixPage() {
           </span>
         )}
         {diff && <span className="text-sm text-[#5B6472]">v{diff.version}: +{diff.added} new · −{diff.removed} removed · {diff.carried_edited} hand-edits kept</span>}
-        {meta && ((meta.weights?.length ?? 0) > 0 || (meta.skipped_post_award ?? 0) > 0 || (meta.ai_structured_from?.length ?? 0) > 0) && (
+        {meta && !meta.ai_structured_from && ((meta.weights?.length ?? 0) > 0 || (meta.skipped_post_award ?? 0) > 0) && (
           <span className="text-sm text-[#5B6472]">
-            {(meta.ai_structured_from?.length ?? 0) > 0
-              ? `AI-structured from §${(meta.ai_structured_from ?? []).join(", §")}${typeof meta.rejected === "number" && meta.rejected > 0 ? ` (${meta.rejected} rejected by verification)` : ""}`
-              : `eval weights: ${(meta.weights ?? []).map((w) => `${w.criterion} ${w.weight}`).slice(0, 3).join("; ")}${(meta.weights?.length ?? 0) > 3 ? "…" : ""} · post-award set aside: ${meta.skipped_post_award ?? 0}`}
+            eval weights: {(meta.weights ?? []).map((w) => `${w.criterion} ${w.weight}`).slice(0, 3).join("; ")}
+            {(meta.weights?.length ?? 0) > 3 ? "…" : ""} · post-award set aside: {meta.skipped_post_award ?? 0}
           </span>
         )}
+        {aiNotice && <span className="text-sm font-semibold text-[#0A2C4E]">{aiNotice}</span>}
       </div>
       {notice && <p className="mb-3 text-sm font-bold text-[#DC2626]">{notice}</p>}
 
