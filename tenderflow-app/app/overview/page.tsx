@@ -99,7 +99,7 @@ export default function OverviewPage() {
       if (!r.ok) {
         setError(j.error ?? "Upload failed.");
       } else {
-        setProgress(j.scanned ? "Done — scanned PDF flagged (no extractable text)." : `Done — ${j.tender.page_count} pages parsed.`);
+        setProgress(j.deduped ? "Already uploaded before — opened the existing tender." : j.scanned ? "Done — scanned PDF flagged (no extractable text)." : `Done — ${j.tender.page_count} pages parsed.`);
         setActiveId(j.tender.id);
         await refresh();
         const d = await fetch(`/api/tenders/${j.tender.id}`).then((x) => x.json());

@@ -4,6 +4,7 @@
 // identical record shape (see db/001-init.sql). No caller changes needed.
 
 import fs from "node:fs/promises";
+import crypto from "node:crypto";
 import path from "node:path";
 import type { TenderOverview } from "./overview";
 import type { ParsedPage } from "./pdf";
@@ -23,6 +24,7 @@ export interface TenderRecord {
   bucket_counts: Record<string, number>;
   file_name: string;
   file_size: number;
+  file_hash: string | null;
   page_count: number;
   scanned: boolean;
   status: string;
@@ -45,6 +47,27 @@ export function validateUpload(fileName: string, size: number): string | null {
   if (size <= 0) return "Empty file.";
   if (size > MAX_BYTES) return "File exceeds the 200 MB limit.";
   return null;
+}
+
+export function sha256Hex(bytes: Buffer): string {
+  return crypto.createHash("sha256").update(bytes).digest("hex");
+}
+
+// Same file uploaded twice returns the existing tender instead of a duplicate.
+export async function findByHash(hash: string): Promise<TenderRecord | null> {
+  if (await postgresReachable()) {
+    try {
+      const pool = await pgPool();
+      try {
+        const res = await pool.query("SELECT * FROM tenders WHERE company_id=$1 AND file_hash=$2 ORDER BY created_at DESC LIMIT 1", [COMPANY_ID, hash]);
+        if (res.rows.length) return rowToRecord(res.rows[0]);
+      } finally {
+        await pool.end();
+      }
+    } catch { /* fall through */ }
+  }
+  const all = await readAll();
+  return all.find((t) => t.file_hash === hash) ?? null;
 }
 
 // ---------- local JSON store (works with zero setup) ----------
@@ -127,13 +150,13 @@ export async function saveTenderPostgres(rec: TenderRecord, pages: ParsedPage[])
       `INSERT INTO tenders (id, company_id, client, title, reference, scope,
         submission_deadline, clarification_deadline, clarification_meeting,
         submission_format, instructions, bucket_counts, file_name, file_size,
-        page_count, scanned, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        file_hash, page_count, scanned, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, status=EXCLUDED.status`,
       [rec.id, COMPANY_ID, rec.client, rec.title, rec.reference, rec.scope,
        rec.submission_deadline, rec.clarification_deadline, rec.clarification_meeting,
        rec.submission_format, rec.instructions, JSON.stringify(rec.bucket_counts),
-       rec.file_name, rec.file_size, rec.page_count, rec.scanned, rec.status]
+       rec.file_name, rec.file_size, rec.file_hash, rec.page_count, rec.scanned, rec.status]
     );
     for (const p of pages) {
       await pool.query(
@@ -164,6 +187,7 @@ function rowToRecord(row: Record<string, unknown>): TenderRecord {
     bucket_counts: (row.bucket_counts as Record<string, number>) ?? {},
     file_name: String(row.file_name ?? ""),
     file_size: Number(row.file_size ?? 0),
+    file_hash: (row.file_hash as string) ?? null,
     page_count: Number(row.page_count ?? 0),
     scanned: Boolean(row.scanned),
     status: String(row.status ?? "intake"),
@@ -240,7 +264,8 @@ export function buildRecord(
   fileSize: number,
   overview: TenderOverview,
   page_count: number,
-  scanned: boolean
+  scanned: boolean,
+  fileHash: string | null = null
 ): TenderRecord {
   const v = (f: { value: string | null }) => f.value;
   return {
@@ -258,6 +283,7 @@ export function buildRecord(
     bucket_counts: overview.bucket_counts,
     file_name: fileName,
     file_size: fileSize,
+    file_hash: fileHash,
     page_count,
     scanned,
     status: "intake",

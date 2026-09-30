@@ -46,6 +46,35 @@
 
 ---
 
+> **Evaluator Note — Responsible AI, Ethics & Corporate Readiness (2026-09-30, owner-directed)**
+>
+> Five principles, how TenderFlow honours each, and what remains:
+>
+> * **Fairness.** The product organises bids; it never scores bidders or picks winners, so there is no automated decision to discriminate. Watch-point carried forward: owner suggestions learn from history and could entrench who always gets picked — mitigated because suggestions display with reasons and a human must Accept/Change; suggestion-acceptance rates will be audited before any pilot scale-up.
+> * **Accountability.** Every AI output is a suggestion: extraction rows are human-verified, matches require Accept, QC overrides require a written reason, readiness never auto-submits, and the audit trail records who decided what. Responsibility in a bid always sits with the named Bid Manager, never the tool.
+> * **Transparency.** AI rows are badged with model, source section and page; keep/drop suggestions ship reasons; the landing page states plainly what the AI does. No silent automation exists in the product.
+> * **Privacy.** Tenders live in the customer's own local database (NDPR-aligned: minimisation, local retention, hard delete incl. files). Only bid-content sections — never whole archives — are sent to the AI provider; nothing trains on customer data; a per-tender rules-only mode (`?ai=off` + workspace toggle) makes zero external calls. CVs/personal data in tenders are therefore never transmitted unless inside an extracted bid section, and reviewers are told this.
+> * **Safety (fail-closed).** Uncertainty resolves to Review, never false-Compliant; hallucinated rows are rejected by verbatim verification before reaching the matrix; if the AI service is down or unconfigured, the rules engine carries on alone. Worst case of a miss is an outstanding item a human still reviews — never an auto-submitted bid.
+>
+> African-builders questions, answered for evaluators:
+>
+> * **Data sovereignty.** Default posture is sovereign: Postgres + files on the customer's own machine under their own law. The only cross-border flow is optional Gemini calls (bid sections only, key-holder's Google terms); rules-only mode removes even that.
+> * **Language.** English-only today, stated openly, never implied otherwise. Tender wording is kept verbatim precisely so nothing is lost in translation; additional languages are a post-MVP RFC, not a silent gap.
+> * **Community decision-making.** The workflow mirrors how bid teams actually work (Bid Manager proposes, owners provide, management signs off) instead of imposing an approval chain from elsewhere; roles stay at Manager/Contributor until a customer asks otherwise.
+> * **Dependency.** If the AI provider shuts off access tomorrow, the product keeps working: heuristics, matching rules, QC checks, readiness and compilation are all local. Vendor-specific code is isolated in one adapter file (`lib/gemini.ts`) behind versioned JSON contracts, so providers are swappable.
+>
+> Underestimated risks, handled:
+>
+> * **Bias** — no bidder scoring exists to scale bias; suggestion patterns stay human-gated.
+> * **Hallucination** — verbatim verification + human verify gates; harm requires two humans to look away.
+> * **Surveillance** — activity logs track tender actions by named bid-team users for audit, not people; no behavioural monitoring, no hidden telemetry.
+> * **Displacement** — product positioning is task relief (reading drudgery), with authority explicitly retained by named humans; pilot guidance frames it that way.
+> * **Consent** — AI use is labelled everywhere it acts, with a per-tender off switch; customers consent by enabling a key they own and can revoke.
+>
+> Corporate-sale readiness (gaps tracked, not hidden): authentication/authorisation (Better Auth, ADR-002 — next build), DPA template + NDPR mapping doc, TLS/backup/restore runbook for any networked deployment, licence file, onboarding guide. Present today: audit export, full delete incl. files, local backups with restore drills, rate limits, upload dedup.
+
+---
+
 # **1\. Product Vision**
 
 Create a platform that transforms the tendering process from a largely manual, document-reading exercise into a **structured, collaborative and quality-controlled workflow**.

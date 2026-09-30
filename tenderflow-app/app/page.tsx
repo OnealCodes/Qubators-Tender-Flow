@@ -139,6 +139,49 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Responsible AI */}
+      <section className="border-t border-[#E2E8F0] bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-14">
+          <h2 className="text-2xl font-extrabold text-[#0A2C4E]">AI that answers to you</h2>
+          <p className="mt-2 max-w-3xl text-sm text-[#5B6472]">
+            Every AI suggestion in TenderFlow can be inspected, overridden, or switched off —
+            per tender, at any time. Nothing is ever auto-submitted.
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-[10px] border border-[#E2E8F0] bg-[#F9FAFB] p-5">
+              <h3 className="text-base font-bold">You see what the AI did, and why</h3>
+              <p className="mt-1 text-sm text-[#5B6472]">
+                AI rows carry their source section and page. Every keep/drop suggestion ships with
+                its reason, every override needs yours, and the full history lives in the audit trail.
+              </p>
+            </div>
+            <div className="rounded-[10px] border border-[#E2E8F0] bg-[#F9FAFB] p-5">
+              <h3 className="text-base font-bold">Your data stays yours</h3>
+              <p className="mt-1 text-sm text-[#5B6472]">
+                Tenders live in your own local database — not ours, not a cloud. AI calls send only
+                the bid-content sections (never whole archives), nothing trains on your data, and a
+                rules-only mode works fully offline with zero external calls.
+              </p>
+            </div>
+            <div className="rounded-[10px] border border-[#E2E8F0] bg-[#F9FAFB] p-5">
+              <h3 className="text-base font-bold">Built to fail safely</h3>
+              <p className="mt-1 text-sm text-[#5B6472]">
+                Uncertain evidence returns “review”, never a false compliant. Hallucinated rows are
+                rejected by verification before they reach your matrix. If the AI service goes dark,
+                the rules engine carries on alone.
+              </p>
+            </div>
+            <div className="rounded-[10px] border border-[#E2E8F0] bg-[#F9FAFB] p-5">
+              <h3 className="text-base font-bold">Assistance, not replacement</h3>
+              <p className="mt-1 text-sm text-[#5B6472]">
+                TenderFlow takes the reading drudgery; bid decisions stay with your team. Owners are
+                suggestions until a human accepts, and readiness never auto-submits.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="hero-band text-white">
         <div className="mx-auto max-w-6xl px-5 py-14 text-center">

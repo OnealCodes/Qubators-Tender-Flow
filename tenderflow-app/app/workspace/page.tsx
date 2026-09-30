@@ -38,6 +38,7 @@ export default function MatrixPage() {
   const [editing, setEditing] = useState<Record<string, { title: string; owner: string; status: string }>>({});
   const [aiConfigured, setAiConfigured] = useState(false);
   const [aiModel, setAiModel] = useState("");
+  const [aiOn, setAiOn] = useState(true);
   const [aiRunning, setAiRunning] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ run_id: string; model: string; keep: number; drop: number } | null>(null);
   const [assessments, setAssessments] = useState<Record<string, { verdict: string; class: string; detail: string; applied: boolean }>>({});
@@ -69,6 +70,10 @@ export default function MatrixPage() {
   }, []);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("tf-ai-enabled");
+      if (saved === "off") setAiOn(false);
+    } catch { /* private mode */ }
     fetch("/api/admin/ai-status")
       .then((r) => r.json())
       .then((j) => {
@@ -111,7 +116,7 @@ export default function MatrixPage() {
     setNotice(null);
     setAiNotice(null);
     try {
-      const r = await fetch(`/api/tenders/${activeId}/extract`, { method: "POST" });
+      const r = await fetch(`/api/tenders/${activeId}/extract${aiOn ? "" : "?ai=off"}`, { method: "POST" });
       const j = await r.json();
       if (!r.ok) {
         setNotice(j.error ?? "Extraction failed.");
@@ -236,10 +241,24 @@ export default function MatrixPage() {
         <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setAiSummary(null); setPage(0); try { localStorage.setItem("tf-active-tender", e.target.value); } catch { /* private mode */ } loadReqs(e.target.value); loadAi(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
           {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title} ({t.page_count}p)</option>))}
         </select>
-        <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50" title="Runs rule-based extraction, then Gemini structuring automatically">
+        <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50" title={aiOn ? "Runs rule-based extraction, then Gemini structuring automatically" : "Runs rules-only extraction — no tender data leaves this machine"}>
           {running ? "Extracting…" : reqs.length ? "Re-run extraction" : "Run extraction"}
         </button>
-        {aiConfigured ? (
+        <label className="flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-2 text-xs font-bold" title="When off, no tender text is sent to any AI service — rules only">
+          <input
+            type="checkbox"
+            checked={aiOn}
+            onChange={(e) => {
+              setAiOn(e.target.checked);
+              try {
+                localStorage.setItem("tf-ai-enabled", e.target.checked ? "on" : "off");
+              } catch { /* private mode */ }
+            }}
+            aria-label="Toggle AI assistance"
+          />
+          AI {aiOn ? "on" : "off"}
+        </label>
+        {aiConfigured && aiOn ? (
           <button onClick={runAiRefine} disabled={aiRunning || reqs.length === 0} className="rounded-lg bg-[#F5B301] px-4 py-2 text-sm font-extrabold text-[#0A2C4E] hover:bg-[#FFC81A] disabled:opacity-50" title="Gemini reviews the current rows and suggests drops — extraction itself already runs Gemini automatically">
             {aiRunning ? "AI working…" : "AI refine"}
           </button>

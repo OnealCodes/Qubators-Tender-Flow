@@ -37,9 +37,11 @@ export default function UploadPage() {
       } else {
         setTender({ id: j.tender.id, title: j.tender.title, page_count: j.tender.page_count, scanned: j.scanned });
         setProgress(
-          j.scanned
-            ? "Done — scanned PDF flagged (no extractable text). Try a text-based PDF."
-            : `Done — ${j.tender.page_count} pages parsed. Ready to extract requirements.`
+          j.deduped
+            ? "Already uploaded before — opened the existing tender instead of a duplicate."
+            : j.scanned
+              ? "Done — scanned PDF flagged (no extractable text). Try a text-based PDF."
+              : `Done — ${j.tender.page_count} pages parsed. Ready to extract requirements.`
         );
       }
     } catch {
