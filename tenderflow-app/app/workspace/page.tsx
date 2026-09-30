@@ -146,27 +146,6 @@ export default function MatrixPage() {
     }
   }
 
-  async function runAiStructure() {
-    if (!activeId) return;
-    setAiRunning(true);
-    setNotice(null);
-    try {
-      const r = await fetch(`/api/tenders/${activeId}/extract/ai`, { method: "POST" });
-      const j = await r.json();
-      if (!r.ok) {
-        setNotice(j.error ?? "AI structuring failed.");
-      } else {
-        setDiff(j.diff);
-        setMeta(j.meta ?? null);
-        await loadReqs(activeId);
-      }
-    } catch {
-      setNotice("AI structuring failed — network error.");
-    } finally {
-      setAiRunning(false);
-    }
-  }
-
   async function applyAiDrops() {
     if (!activeId) return;
     setAiRunning(true);
@@ -250,18 +229,13 @@ export default function MatrixPage() {
         <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setAiSummary(null); setPage(0); loadReqs(e.target.value); loadAi(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
           {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title} ({t.page_count}p)</option>))}
         </select>
-        <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50">
+        <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50" title="Runs rule-based extraction, then Gemini structuring automatically">
           {running ? "Extracting…" : reqs.length ? "Re-run extraction" : "Run extraction"}
         </button>
         {aiConfigured ? (
-          <>
-            <button onClick={runAiRefine} disabled={aiRunning || reqs.length === 0} className="rounded-lg bg-[#F5B301] px-4 py-2 text-sm font-extrabold text-[#0A2C4E] hover:bg-[#FFC81A] disabled:opacity-50" title="Gemini reviews the heuristic rows and suggests drops — nothing changes until you Apply">
-              {aiRunning ? "AI working…" : "AI refine"}
-            </button>
-            <button onClick={runAiStructure} disabled={aiRunning} className="rounded-lg border border-[#F5B301] bg-white px-4 py-2 text-sm font-bold text-[#0A2C4E] hover:bg-[#FFF6DE] disabled:opacity-50" title="Gemini finds the bid sections and structures exact-wording rows only from them">
-              {aiRunning ? "AI working…" : "AI structure"}
-            </button>
-          </>
+          <button onClick={runAiRefine} disabled={aiRunning || reqs.length === 0} className="rounded-lg bg-[#F5B301] px-4 py-2 text-sm font-extrabold text-[#0A2C4E] hover:bg-[#FFC81A] disabled:opacity-50" title="Gemini reviews the current rows and suggests drops — extraction itself already runs Gemini automatically">
+            {aiRunning ? "AI working…" : "AI refine"}
+          </button>
         ) : (
           <span className="text-xs text-[#5B6472]" title="Add GEMINI_API_KEY to tenderflow-app/.env to enable">AI refine: key missing</span>
         )}
