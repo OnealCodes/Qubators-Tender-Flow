@@ -177,7 +177,7 @@ function classifyRisk(text: string, type: string, listedContent: boolean): { ris
   return { risk: "mandatory", reason: "Stated as a requirement without explicit criticality." };
 }
 
-function suggestOwner(text: string): string | null {
+export function suggestOwner(text: string): string | null {
   for (const r of OWNER_RULES) if (r.match.test(text)) return r.owner;
   return null;
 }

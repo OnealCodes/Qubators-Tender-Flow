@@ -35,6 +35,11 @@ export default function MatrixPage() {
   const [fEnvelope, setFEnvelope] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<Record<string, { title: string; owner: string; status: string }>>({});
+  const [aiConfigured, setAiConfigured] = useState(false);
+  const [aiModel, setAiModel] = useState("");
+  const [aiRunning, setAiRunning] = useState(false);
+  const [aiSummary, setAiSummary] = useState<{ run_id: string; model: string; keep: number; drop: number } | null>(null);
+  const [assessments, setAssessments] = useState<Record<string, { verdict: string; class: string; detail: string; applied: boolean }>>({});
 
   useEffect(() => {
     const h = (e: Event) => {
@@ -51,7 +56,25 @@ export default function MatrixPage() {
     setDelivs(r.deliverables ?? []);
   }, []);
 
+  const loadAi = useCallback(async (id: string) => {
+    try {
+      const j = await fetch(`/api/tenders/${id}/ai`).then((x) => x.json());
+      const map: Record<string, { verdict: string; class: string; detail: string; applied: boolean }> = {};
+      for (const a of j.assessments ?? []) {
+        if (!map[a.requirement_id]) map[a.requirement_id] = a;
+      }
+      setAssessments(map);
+    } catch { /* AI panel stays empty */ }
+  }, []);
+
   useEffect(() => {
+    fetch("/api/admin/ai-status")
+      .then((r) => r.json())
+      .then((j) => {
+        setAiConfigured(!!j.configured);
+        setAiModel(j.model ?? "");
+      })
+      .catch(() => {});
     fetch("/api/tenders")
       .then((r) => r.json())
       .then((j) => {
@@ -59,12 +82,20 @@ export default function MatrixPage() {
         if (j.tenders?.length) {
           setActiveId(j.tenders[0].id);
           loadReqs(j.tenders[0].id);
+          loadAi(j.tenders[0].id);
         }
       })
       .catch(() => {});
-  }, [loadReqs]);
+  }, [loadReqs, loadAi]);
 
-  const [meta, setMeta] = useState<{ weights?: { criterion: string; weight: string }[]; skipped_post_award?: number; skipped_evaluation?: number } | null>(null);
+  const [meta, setMeta] = useState<{
+    weights?: { criterion: string; weight: string }[];
+    skipped_post_award?: number;
+    skipped_evaluation?: number;
+    ai_structured_from?: string[];
+    rejected?: number;
+    engine_note?: string;
+  } | null>(null);
 
   async function runExtraction() {
     if (!activeId) return;
@@ -84,6 +115,65 @@ export default function MatrixPage() {
       setNotice("Extraction failed — network error.");
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function runAiRefine() {
+    if (!activeId) return;
+    setAiRunning(true);
+    setNotice(null);
+    try {
+      const r = await fetch(`/api/tenders/${activeId}/ai`, { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) {
+        setNotice(j.error ?? "AI refinement failed.");
+      } else {
+        setAiSummary(j.summary ?? null);
+        await loadAi(activeId);
+      }
+    } catch {
+      setNotice("AI refinement failed — network error.");
+    } finally {
+      setAiRunning(false);
+    }
+  }
+
+  async function runAiStructure() {
+    if (!activeId) return;
+    setAiRunning(true);
+    setNotice(null);
+    try {
+      const r = await fetch(`/api/tenders/${activeId}/extract/ai`, { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) {
+        setNotice(j.error ?? "AI structuring failed.");
+      } else {
+        setDiff(j.diff);
+        setMeta(j.meta ?? null);
+        await loadReqs(activeId);
+      }
+    } catch {
+      setNotice("AI structuring failed — network error.");
+    } finally {
+      setAiRunning(false);
+    }
+  }
+
+  async function applyAiDrops() {
+    if (!activeId) return;
+    setAiRunning(true);
+    try {
+      const r = await fetch(`/api/tenders/${activeId}/ai`, { method: "PUT" });
+      const j = await r.json();
+      if (r.ok) {
+        setNotice(`AI cleanup applied — ${j.applied} suggested row(s) removed. Re-run extraction any time to restore.`);
+        await loadReqs(activeId);
+        await loadAi(activeId);
+      } else {
+        setNotice(j.error ?? "Apply failed.");
+      }
+    } finally {
+      setAiRunning(false);
     }
   }
 
@@ -149,17 +239,40 @@ export default function MatrixPage() {
     <Shell>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="text-sm font-bold">Tender:</label>
-        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setPage(0); loadReqs(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
+        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setAiSummary(null); setPage(0); loadReqs(e.target.value); loadAi(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
           {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title} ({t.page_count}p)</option>))}
         </select>
         <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50">
           {running ? "Extracting…" : reqs.length ? "Re-run extraction" : "Run extraction"}
         </button>
-        {diff && <span className="text-sm text-[#5B6472]">v{diff.version}: +{diff.added} new · −{diff.removed} removed · {diff.carried_edited} hand-edits kept</span>}
-        {meta && ((meta.weights?.length ?? 0) > 0 || (meta.skipped_post_award ?? 0) > 0) && (
+        {aiConfigured ? (
+          <>
+            <button onClick={runAiRefine} disabled={aiRunning || reqs.length === 0} className="rounded-lg bg-[#F5B301] px-4 py-2 text-sm font-extrabold text-[#0A2C4E] hover:bg-[#FFC81A] disabled:opacity-50" title="Gemini reviews the heuristic rows and suggests drops — nothing changes until you Apply">
+              {aiRunning ? "AI working…" : "AI refine"}
+            </button>
+            <button onClick={runAiStructure} disabled={aiRunning} className="rounded-lg border border-[#F5B301] bg-white px-4 py-2 text-sm font-bold text-[#0A2C4E] hover:bg-[#FFF6DE] disabled:opacity-50" title="Gemini finds the bid sections and structures exact-wording rows only from them">
+              {aiRunning ? "AI working…" : "AI structure"}
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-[#5B6472]" title="Add GEMINI_API_KEY to tenderflow-app/.env to enable">AI refine: key missing</span>
+        )}
+        {aiSummary && (
           <span className="text-sm text-[#5B6472]">
-            · eval weights: {(meta.weights ?? []).map((w) => `${w.criterion} ${w.weight}`).slice(0, 3).join("; ")}
-            {(meta.weights?.length ?? 0) > 3 ? "…" : ""} · post-award set aside: {meta.skipped_post_award ?? 0}
+            · AI ({aiSummary.model}): {aiSummary.keep} keep · {aiSummary.drop} drop suggested{" "}
+            {aiSummary.drop > 0 && (
+              <button onClick={applyAiDrops} disabled={aiRunning} className="font-bold text-[#1D4C8D] underline disabled:opacity-50">
+                Apply drops
+              </button>
+            )}
+          </span>
+        )}
+        {diff && <span className="text-sm text-[#5B6472]">v{diff.version}: +{diff.added} new · −{diff.removed} removed · {diff.carried_edited} hand-edits kept</span>}
+        {meta && ((meta.weights?.length ?? 0) > 0 || (meta.skipped_post_award ?? 0) > 0 || (meta.ai_structured_from?.length ?? 0) > 0) && (
+          <span className="text-sm text-[#5B6472]">
+            {(meta.ai_structured_from?.length ?? 0) > 0
+              ? `AI-structured from §${(meta.ai_structured_from ?? []).join(", §")}${typeof meta.rejected === "number" && meta.rejected > 0 ? ` (${meta.rejected} rejected by verification)` : ""}`
+              : `eval weights: ${(meta.weights ?? []).map((w) => `${w.criterion} ${w.weight}`).slice(0, 3).join("; ")}${(meta.weights?.length ?? 0) > 3 ? "…" : ""} · post-award set aside: ${meta.skipped_post_award ?? 0}`}
           </span>
         )}
       </div>
@@ -230,6 +343,13 @@ export default function MatrixPage() {
                               <Badge tone={toneForType(r.type)}>{r.type}</Badge>
                               <Badge tone={toneForRisk(r.risk)}>{r.risk}</Badge>
                               {r.edited && <Badge tone="amber">✎ hand-edited</Badge>}
+                              {assessments[r.id] && (
+                                <span title={assessments[r.id].detail || assessments[r.id].class}>
+                                  <Badge tone={assessments[r.id].verdict === "drop" ? "red" : "green"}>
+                                    AI: {assessments[r.id].verdict === "drop" ? `drop (${assessments[r.id].class})` : `keep (${assessments[r.id].class})`}
+                                  </Badge>
+                                </span>
+                              )}
                             </div>
                             {r.description && r.description !== r.title && (
                               <div className="mt-1 whitespace-pre-wrap text-[13px] text-[#4B5563]">{r.description}</div>

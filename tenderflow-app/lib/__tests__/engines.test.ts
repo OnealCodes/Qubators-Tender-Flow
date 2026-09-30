@@ -1,6 +1,7 @@
 // Engine unit tests — run: npm test (vitest run). Pure functions only,
 // no database, no network. Guards the behaviour proven on real ITTs.
 import { describe, expect, it } from "vitest";
+import { collectHeaders, toExtracted, verifyRows } from "../ai-extract";
 import { extractRequirements } from "../extract";
 import { expiryBadge, scoreMatch } from "../matching";
 import { refineRisk, runQc } from "../qc";
@@ -164,8 +165,47 @@ describe("extractRequirements", () => {
   });
 });
 
-describe("matching", () => {
-  const doc = (name: string, extra = {}) => ({
+describe("two-pass AI structuring helpers", () => {
+  const headers = [
+    { ref: "4.0", title: "TENDER REQUIREMENTS", page: 20 },
+    { ref: "4.1", title: "Mandatory Bid Content", page: 20 },
+    { ref: "4.2", title: "Pricing Schedule", page: 20 },
+  ];
+
+  it("collects numbered headers with pages, skipping TOC lines", () => {
+    const found = collectHeaders([
+      { page_no: 3, text: "4.1 Mandatory Bid Content .................... 20 4.2 Pricing Schedule .... 20" },
+      { page_no: 20, text: "4.1 Mandatory Bid Content. Scope of Work for analysis." },
+    ]);
+    expect(found.some((h) => h.ref === "4.1" && h.page === 20)).toBe(true);
+    expect(found.every((h) => !/\.{3,}/.test(h.title))).toBe(true);
+  });
+
+  it("rejects hallucinated titles, unknown refs and short rows", () => {
+    const section = "CVs of the named lead analyst, checker and any third-party verifier.";
+    const { valid, rejected } = verifyRows(
+      [
+        { ref: "4.1", title: "CVs of the named lead analyst, checker and any third-party verifier.", detail: "", kind: "requirement", envelope: "Technical", page: 20 },
+        { ref: "4.1", title: "Provide ten submarines immediately.", detail: "", kind: "requirement", envelope: "Technical", page: 20 },
+        { ref: "9.9", title: "CVs of the named lead analyst.", detail: "", kind: "requirement", envelope: "Technical", page: 20 },
+      ],
+      section,
+      headers
+    );
+    expect(valid.length).toBe(1);
+    expect(rejected).toBe(2);
+  });
+
+  it("converts verified rows to extraction shape with suggestions", () => {
+    const out = toExtracted([
+      { ref: "4.1", title: "Nigerian Content Plan and NCDMB compliance evidence.", detail: "", kind: "requirement", envelope: "Technical", page: 20 },
+    ]);
+    expect(out[0].suggested_owner).toBe("Nigerian Content");
+    expect(out[0].deliverables).toEqual([]);
+  });
+});
+
+describe("matching", () => {  const doc = (name: string, extra = {}) => ({
     id: "l1", company_id: "demo", name, doc_type: "registration",
     version: "v1", version_no: 1, superseded: false, issue_date: null,
     expiry_date: null, dept: null, entity: "NUPRC", storage_path: null,
