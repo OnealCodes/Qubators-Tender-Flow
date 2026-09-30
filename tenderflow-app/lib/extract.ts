@@ -62,8 +62,10 @@ const CRITICAL_STANDALONE =
 type ZoneKind = "general" | "bid" | "commercial" | "evaluation" | "execution";
 
 const ZONE_SETTERS: { match: RegExp; zone: ZoneKind }[] = [
-  { match: /mandatory bid content|minimum bid content|bid submission shall|what to submit|documents to be submitted/i, zone: "bid" },
-  { match: /pricing schedule|price schedule|schedule of prices|price basis|scope group/i, zone: "commercial" },
+  // Commercial first: it is more specific than the general bid patterns
+  // ("COMMERCIAL RFQ SHOULD INCLUDE" contains "SHOULD INCLUDE").
+  { match: /pricing schedule|price schedule|schedule of prices|price basis|scope group|commercial RFQ should include|commercial.*should include/i, zone: "commercial" },
+  { match: /mandatory bid content|minimum bid content|bid submission shall|bid submission requirement|what to submit|documents to be submitted|should include/i, zone: "bid" },
   { match: /evaluation criteria|bids will be evaluated|basis of award|scored separat/i, zone: "evaluation" },
   { match: /post-award|after award|upon award|contract execution|during execution|during the works|following award/i, zone: "execution" },
 ];
@@ -80,7 +82,7 @@ const SUBMISSION_SIGNALS = /submit|bid|proposal|tender|with (the|this) bid|at (b
 // Performance-of-work language ("supply diligently ... in accordance with
 // the contract") describes execution, not submission — unless the sentence
 // itself ties to the bid.
-const WORK_PERFORMANCE = /supply .* diligently|good and professional manner|contractor shall .* in accordance with the (contract|scope|work)/i;
+const WORK_PERFORMANCE = /supply .* diligently|good and professional manner|contractor shall .* in accordance with the (contract|scope|work)|employ (his|their) best efforts|good care and professional judgment|professional and timely manner/i;
 
 const ZONE_HEADERS: { match: RegExp; section: string }[] = [
   { match: /^section\s+A\b|company status/i, section: "General" },
@@ -123,7 +125,7 @@ const ENTITIES: { match: RegExp; label: string }[] = [
   { match: /reference projects?/i, label: "Reference projects" },
   { match: /nigerian content plan/i, label: "Nigerian Content Plan" },
   { match: /quality plan/i, label: "Quality plan" },
-  { match: /schedule/i, label: "Schedule" },
+  { match: /work execution plan|project schedule|work schedule|critical path|schedule of (rates|prices)/i, label: "Schedule" },
 ];
 
 const SECTION_TERMS: { match: RegExp; section: string }[] = [
@@ -206,7 +208,12 @@ function splitSegments(text: string): string[] {
     }, [])
     .join("\n");
   return withBullets
-    .split(/(?<=[.;])\s+|\n|(?=\b\d+\.\s+[A-Z])/)
+    // Never split after abbreviations (i.e. / e.g. / etc. / Sec. / No. /
+    // Fig. / vs.) — splitting there shreds years and references ("i.e.
+    // 2023 - 2025" must stay whole). Exception: an ALL-CAPS header follows
+    // ("etc. COMMERCIAL RFQ SHOULD INCLUDE:") — glued headers always split
+    // off, otherwise they repaint the preceding bullet's envelope.
+    .split(/(?<=[.;])(?<!\b(?:i\.e|e\.g|etc|Sec|No|Fig|vs)\.)\s+|\n|(?<=[.;])\s+(?=[A-Z][A-Z \-&/,]{3,}:)|(?=\b\d+\.\s+[A-Z])/)
     .map((s) => s.trim())
     .filter((s) => s.length >= 20);
 }
@@ -232,6 +239,11 @@ const SKIP_PATTERNS = [
   // Bare intros ending in a colon ("Bidders must submit:") — the bullets
   // that follow carry the actual requirements.
   /^[^:]{3,60}:\s*$/,
+  // Bare scope/introduction openers ("INTRODUCTION Damas ...", "SCOPE OF
+  // WORK FOR ... GENERAL ...") — preamble narratives, never requirements.
+  // Numbered variants ("2.1 Scope of Work: ...") are unaffected: they start
+  // with digits, and genuine requirements live in numbered/bid sections.
+  /^(introduction|scope of work|project scope|project background|background|overview)\b/i,
 ];
 
 // Table-of-contents lines name every section ("4.3 Evaluation Criteria 18")
@@ -263,6 +275,10 @@ export function extractRequirements(pages: ParsedPage[]): { requirements: Extrac
   let refContext: string | null = null;
   let pricingParent: ExtractedRequirement | null = null;
   let group: OpenGroup | null = null;
+  // True when the commercial zone came from a SHOULD-INCLUDE list header
+  // (broad context: rows below belong to the commercial submission) rather
+  // than a pricing-table mention (narrow: only pricing rows are commercial).
+  let commercialList = false;
   // Skip-zones (execution, evaluation) expire: a single short header must
   // never repaint the rest of the document when no reset follows it.
   let zoneTtl = 0;
@@ -298,6 +314,9 @@ export function extractRequirements(pages: ParsedPage[]): { requirements: Extrac
     if (!group || group.segments.length === 0) {
       group = null;
       return;
+    }
+    if (process.env.TF_DBG) {
+      console.error(`DBG close kind=${group.envelope} zkind=${group.zone} segs=${group.segments.length} first=${group.segments[0].text.slice(0, 50)}`);
     }
     const joined = group.segments.map((s) => s.text).join(" ");
     const first = group.segments[0].text;
@@ -348,6 +367,15 @@ export function extractRequirements(pages: ParsedPage[]): { requirements: Extrac
   };
 
   for (const page of pages) {
+    // Page breaks reset the volatile zones: a SHOULD-INCLUDE header on one
+    // page must not repaint the next page's rows (TOC fragments and
+    // multi-column reading order routinely strand them). The broad bid zone
+    // stays sticky so multi-page bid lists keep working.
+    if (kind === "commercial" || kind === "execution" || kind === "evaluation") {
+      closeGroup();
+      kind = "general";
+      commercialList = false;
+    }
     // Strip running page headers first ("Document No. ... Page 20 of 21"):
     // otherwise they glue onto the section header that follows and the
     // whole segment gets skipped as a page marker — taking the section
@@ -410,27 +438,30 @@ export function extractRequirements(pages: ParsedPage[]): { requirements: Extrac
       }
 
       // Zone headers steer everything below them; a fresh numbered tender
-      // section resets back to general reading. Only short header-like
-      // segments flip the zone — a passing mention inside a long sentence
-      // must not repaint the rest of the document (e.g. a TOC-adjacent
-      // "Evaluation Criteria" or "during execution" inside body text).
-      // Only short header-like segments skip — long sentences mentioning a
-      // zone phrase still flow through (the post-award gate counts them,
-      // evaluation captures them).
+      // section resets back to general reading. Flips apply at any length
+      // (headers arrive glued to content); only the SKIP is length-gated.
+      // Segment-grounded envelope/type rules plus skip-zone TTLs keep long
+      // body mentions from repainting the rest of the document.
       const zoneSet = ZONE_SETTERS.find((z) => z.match.test(head));
       let zoneJustSet = false;
-      if (zoneSet && seg.length < 100) {
+      if (zoneSet) {
         if (kind !== zoneSet.zone) {
           closeGroup();
           kind = zoneSet.zone;
           zoneJustSet = true;
-          zoneTtl = zoneSet.zone === "execution" ? 5 : zoneSet.zone === "evaluation" ? 10 : 0;
         }
+        // Refresh on every matching header, not just on change: repeated
+        // headers re-arm skip-zone TTLs and record how the commercial zone
+        // was entered (list header vs pricing-table mention).
+        if (zoneSet.zone === "execution") zoneTtl = 5;
+        else if (zoneSet.zone === "evaluation") zoneTtl = 10;
+        if (zoneSet.zone === "commercial") commercialList = /should include/i.test(head);
         if (seg.length < 80 && !PRICING_ROW.test(seg)) continue;
       } else if (!zoneSet && SECTION_RESET.test(seg.slice(0, 30)) && !/tender requirements|evaluation|pricing/i.test(head)) {
         if (kind !== "general") {
           closeGroup();
           kind = "general";
+          commercialList = false;
         }
       }
       // Expire skip-zones: content far below a short header reads normally.
@@ -509,13 +540,14 @@ export function extractRequirements(pages: ParsedPage[]): { requirements: Extrac
       const bullet = isBullet(seg);
       const listedContent = bullet && (kind === "bid" || kind === "commercial");
       const section = sectionFor(seg);
-      // Commercial envelope only when the row's own words say so: section
-      // context (even a pricing header above) must not repaint neighbouring
-      // Technical rows such as quality plans or schedules as Commercial.
-      const envelope: "Technical" | "Commercial" =
-        /pric|price|payment|budget|scope group|quote|quotation|commercial|bid bond|\bGroup\s+[A-E]\b|Option\s*\d+/i.test(seg)
-          ? "Commercial"
-          : "Technical";
+      // Commercial envelope when the row's own words say so, or when it sits
+      // under a SHOULD-INCLUDE commercial list (broad context). A bare
+      // pricing-table mention must not repaint neighbouring Technical rows
+      // such as quality plans or schedules as Commercial.
+      const commercialRow =
+        /pric|price|payment|budget|scope group|quote|quotation|commercial|bid bond|\bGroup\s+[A-E]\b|Option\s*\d+/i.test(seg) ||
+        (kind === "commercial" && commercialList);
+      const envelope: "Technical" | "Commercial" = commercialRow ? "Commercial" : "Technical";
 
       // Group boundaries: new bullet, zone change, page change, or a long
       // run — related sentences stay together inside one requirement.

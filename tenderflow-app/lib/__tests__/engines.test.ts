@@ -138,6 +138,38 @@ describe("extractRequirements", () => {
     expect(out[1].title).toMatch(/Software proposed/);
   });
 
+  it("recognises RFQ SHOULD-INCLUDE lists as bid content", () => {
+    const { requirements: out } = extractRequirements(
+      pages("5. RFQ BID SUBMISSION REQUIREMENT TECHNICAL RFQ SHOULD INCLUDE: • Evidence of company registration to practice in Nigeria. • Evidence of similar jobs done in the past five years.")
+    );
+    expect(out.length).toBe(2);
+    expect(out.every((r) => r.risk === "mandatory")).toBe(true);
+  });
+
+  it("never splits after i.e. / e.g. / Sec. abbreviations", () => {
+    const { requirements: out } = extractRequirements(
+      pages("Tenderers must provide Tax clearance certificate (last three years i.e. 2023 - 2025).")
+    );
+    expect(out.length).toBe(1);
+    expect(out[0].title).toMatch(/2023 - 2025/);
+    expect(out[0].deliverables.map((d) => d.title).join(" ")).toMatch(/2023|2024|2025/);
+  });
+
+  it("treats commercial SHOULD-INCLUDE as Commercial envelope", () => {
+    const { requirements: out } = extractRequirements(
+      pages("COMMERCIAL RFQ SHOULD INCLUDE: • Cost of all products and equipment required.")
+    );
+    expect(out.length).toBe(1);
+    expect(out[0].envelope).toBe("Commercial");
+  });
+
+  it("skips bare scope/introduction openers", () => {
+    const { requirements: out } = extractRequirements(
+      pages("INTRODUCTION Damas Petrochemicals & Refinery Limited operators of OML 110.")
+    );
+    expect(out.length).toBe(0);
+  });
+
   it("joins qualifications into the same row instead of new rows", () => {
     const { requirements: out } = extractRequirements(
       pages("• Reference projects: free-standing conductors. General offshore structural experience alone is not responsive to this scope.")
