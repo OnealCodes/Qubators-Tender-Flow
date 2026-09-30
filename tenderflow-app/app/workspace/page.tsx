@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Shell from "../../components/shell";
 import { Badge } from "../../components/ui";
 import { matrix as demoMatrix, readiness, singleRows, tender as demoTender } from "../../lib/demo-data";
@@ -288,7 +288,7 @@ export default function MatrixPage() {
 
       {reqs.length === 0 ? (
         <div className="mb-4 rounded-[10px] border border-[#E2E8F0] bg-white p-6 text-center text-sm">
-          <strong>No requirements extracted yet.</strong> Click <strong>Run extraction</strong> to build the responsibility matrix from the parsed pages (heuristic v1 — you verify every row).
+          <strong>No requirements extracted yet.</strong> Click <strong>Run extraction</strong> to build the responsibility matrix from the parsed pages (AI-structured — you verify every row).
         </div>
       ) : (
         <>
@@ -334,7 +334,7 @@ export default function MatrixPage() {
                     const isCollapsed = !!collapsed[r.id];
                     const e = editing[r.id];
                     return (
-                      <>
+                      <Fragment key={r.id}>
                         <tr key={r.id} className="border-t-2 border-[#CBD5E1] bg-white">
                           <td className="px-3.5 py-3.5 align-top">
                             <Badge tone="blue">{r.section}</Badge>
@@ -417,7 +417,7 @@ export default function MatrixPage() {
                             <td className="px-3.5 py-3.5"></td>
                           </tr>
                         ))}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </tbody>
