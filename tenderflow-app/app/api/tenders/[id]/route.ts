@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { logActivity } from "../../../../lib/collab";
+import { managerOnly, sessionUser } from "../../../../lib/authz";
 import { getTender, postgresReachable, uploadsDir } from "../../../../lib/tenders";
 
 export const runtime = "nodejs";
@@ -61,9 +62,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   return NextResponse.json({ id, status: body.status });
 }
 
-// Permanent delete: database rows (FK cascades verified) + files on disk +
-// local mirrors. Archive first if unsure — this cannot be undone.
-export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+// Permanent delete (Bid Manager only): database rows (FK cascades verified)
+// + files on disk + local mirrors. Archive first if unsure — cannot be undone.
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const denied = managerOnly(await sessionUser(req));
+  if (denied) return denied;
   const { id } = await ctx.params;
   const { tender } = await getTender(id);
   if (!tender) return NextResponse.json({ error: "Tender not found." }, { status: 404 });

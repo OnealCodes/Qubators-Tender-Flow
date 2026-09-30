@@ -11,6 +11,7 @@
     "eval:qc": "node scripts/qc-eval.mjs"
   },
   "dependencies": {
+    "better-auth": "^1.7.6",
     "next": "16.3.6",
     "pdfjs-dist": "^6.3.289",
     "pg": "^8.23.0",
