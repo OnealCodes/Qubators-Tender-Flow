@@ -79,12 +79,19 @@ export default function MatrixPage() {
     fetch("/api/tenders")
       .then((r) => r.json())
       .then((j) => {
-        setTenders(j.tenders ?? []);
-        if (j.tenders?.length) {
-          setActiveId(j.tenders[0].id);
-          loadReqs(j.tenders[0].id);
-          loadAi(j.tenders[0].id);
-        }
+        const open = ((j.tenders ?? []) as { id: string; status?: string }[]).filter(
+          (t) => (t.status ?? "intake") !== "archived"
+        );
+        setTenders(j.tenders?.filter((t: { status?: string }) => (t.status ?? "intake") !== "archived") ?? []);
+        if (!open.length) return;
+        let pick = open[0].id;
+        try {
+          const saved = localStorage.getItem("tf-active-tender");
+          if (saved && open.some((t) => t.id === saved)) pick = saved;
+        } catch { /* private mode */ }
+        setActiveId(pick);
+        loadReqs(pick);
+        loadAi(pick);
       })
       .catch(() => {});
   }, [loadReqs, loadAi]);
@@ -226,7 +233,7 @@ export default function MatrixPage() {
     <Shell>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <label className="text-sm font-bold">Tender:</label>
-        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setAiSummary(null); setPage(0); loadReqs(e.target.value); loadAi(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
+        <select value={activeId ?? ""} onChange={(e) => { setActiveId(e.target.value); setDiff(null); setMeta(null); setAiSummary(null); setPage(0); try { localStorage.setItem("tf-active-tender", e.target.value); } catch { /* private mode */ } loadReqs(e.target.value); loadAi(e.target.value); }} className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm">
           {tenders.map((t) => (<option key={t.id} value={t.id}>{t.title} ({t.page_count}p)</option>))}
         </select>
         <button onClick={runExtraction} disabled={running} className="rounded-lg bg-[#1D4C8D] px-4 py-2 text-sm font-bold text-white hover:bg-[#14365F] disabled:opacity-50" title="Runs rule-based extraction, then Gemini structuring automatically">

@@ -33,8 +33,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
         <nav className="flex flex-col gap-1">
-          {["Tenders", "Library", "Expiry", "Team", "Settings"].map((item, i) => (
-            <button key={item} className={`rounded-lg px-3 py-2.5 text-left text-sm ${i === 0 ? "bg-[#12385F] text-white shadow-[inset_3px_0_0_#F5B301]" : "text-slate-300 hover:bg-[#12385F] hover:text-white"}`}>
+          <Link href="/tenders" className={`rounded-lg px-3 py-2.5 text-left text-sm ${pathname === "/tenders" ? "bg-[#12385F] text-white shadow-[inset_3px_0_0_#F5B301]" : "text-slate-300 hover:bg-[#12385F] hover:text-white"}`}>
+            Tenders
+          </Link>
+          {["Library", "Expiry", "Team", "Settings"].map((item) => (
+            <button key={item} className="rounded-lg px-3 py-2.5 text-left text-sm text-slate-300 hover:bg-[#12385F] hover:text-white">
               {item}
             </button>
           ))}
