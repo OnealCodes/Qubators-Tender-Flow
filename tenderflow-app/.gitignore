@@ -39,6 +39,10 @@ uploads/
 # local database backups (never committed)
 .local-backups/
 
+# Playwright test output (traces, screenshots)
+test-results/
+playwright-report/
+
 # vercel
 .vercel
 
