@@ -1,5 +1,5 @@
-// Phase 2a: deterministic section chunker + document map.
-// Pure functions only — no AI, no database, no network.
+﻿// Phase 2a: deterministic section chunker + document map.
+// Pure functions only â€” no AI, no database, no network.
 // Purpose: long tenders are mostly post-award contract text. The map lets
 // later phases send only bid-stage chunks to Gemini, while flagging
 // post-award chunks that hide a bid-stage submission clause.
@@ -27,7 +27,7 @@ export interface SectionChunk {
   title: string;
   startPage: number;
   endPage: number;
-  /** Core pages only — the union over all chunks covers every page exactly once. */
+  /** Core pages only â€” the union over all chunks covers every page exactly once. */
   text: string;
   /** Core text plus one neighbour page each side (marked), for split bullets/tables. */
   textWithOverlap: string;
@@ -45,14 +45,14 @@ export const PAGE_FALLBACK_SIZE = 5;
 
 // Same numbered-header pattern as collectHeaders (copied, not imported, to
 // keep this module free of database/network dependencies).
-const NUMBERED_RE = /(\d+\.\d+(?:\.\d+)*)\s+([A-Z][A-Za-z][A-Za-z &,\-]{2,60}?)(?=\s*(?:•|\.|$|\d+\.\d+))/g;
+const NUMBERED_RE = /(\d+\.\d+(?:\.\d+)*)\s+([A-Z][A-Za-z][A-Za-z &,\-]{2,60}?)(?=\s*(?:â€¢|\.|$|\d+\.\d+))/g;
 
 // Fallback heading styles for tenders with no x.y headers (e.g. RFQs):
 // single-level numbers ("5. RFQ BID SUBMISSION REQUIREMENT"), colon
 // terminated caps ("TECHNICAL RFQ SHOULD INCLUDE:") and exhibits.
-const SINGLE_LEVEL_RE = /(?:^|\s)(\d+)\.\s+([A-Z][A-Za-z]*(?:\s+[A-Za-z&\-–()\/,]+){0,6})/g;
+const SINGLE_LEVEL_RE = /(?:^|\s)(\d+)\.\s+([A-Z][A-Za-z]*(?:\s+[A-Za-z&\-â€“()\/,]+){0,6})/g;
 const CAPS_HEADING_RE = /([A-Z][A-Z0-9 \-&\/,()]{6,70}?)\s*:/g;
-const EXHIBIT_RE = /((?:Appendix|Exhibit|Attachment|Annex)\s+[A-Z0-9]+[^.]{0,60}?)(?=\s*(?:•|:|$|\d))/gi;
+const EXHIBIT_RE = /((?:Appendix|Exhibit|Attachment|Annex)\s+[A-Z0-9]+[^.]{0,60}?)(?=\s*(?:â€¢|:|$|\d))/gi;
 
 function numberedHeadersOn(page: { page_no: number; text: string }): ChunkHeader[] {
   const out: ChunkHeader[] = [];
@@ -105,7 +105,7 @@ function headingFallbackOn(page: { page_no: number; text: string }): ChunkHeader
 }
 
 // Table-of-contents lines ("1. INTRODUCTION .... 3") name sections without
-// meaning them — a heading followed by dotted leaders is never a chunk start.
+// meaning them â€” a heading followed by dotted leaders is never a chunk start.
 function isTocGhost(text: string, afterIndex: number): boolean {
   return /\.{3,}|\s\d{1,3}\s*$/.test(text.slice(afterIndex, afterIndex + 90));
 }
@@ -148,7 +148,7 @@ function splitOversized(
  * Split a tender into section chunks. Core pages partition the document:
  * every page belongs to exactly one chunk (no gaps, no drops, no char cap).
  * Overlap pages are reported separately and included marked in
- * textWithOverlap — they never extend the core partition.
+ * textWithOverlap â€” they never extend the core partition.
  */
 export function chunkBySection(pages: ParsedPage[]): SectionChunk[] {
   if (pages.length === 0) return [];
@@ -165,7 +165,7 @@ export function chunkBySection(pages: ParsedPage[]): SectionChunk[] {
     if (last && last.page === p.page_no) last.headers.push(...found);
     else boundaries.push({ page: p.page_no, headers: found, source: "numbered" });
   }
-  // Pass 2: heading-style fallback (needs headings on ≥2 pages to trust it).
+  // Pass 2: heading-style fallback (needs headings on â‰¥2 pages to trust it).
   if (boundaries.length === 0) {
     const headingStarts: Boundary[] = [];
     for (const p of sorted) {
@@ -178,13 +178,13 @@ export function chunkBySection(pages: ParsedPage[]): SectionChunk[] {
     const distinctPages = new Set(headingStarts.map((b) => b.page)).size;
     if (headingStarts.length > 0 && distinctPages >= 2) boundaries = headingStarts;
   }
-  // Pass 3: page-based fallback — fixed windows, full coverage guaranteed.
+  // Pass 3: page-based fallback â€” fixed windows, full coverage guaranteed.
   if (boundaries.length === 0) {
     for (let i = 0; i < sorted.length; i += PAGE_FALLBACK_SIZE) {
       const p = sorted[i];
       boundaries.push({
         page: p.page_no,
-        headers: [{ ref: null, title: `Pages ${p.page_no}–${Math.min(p.page_no + PAGE_FALLBACK_SIZE - 1, lastPage)}`, page: p.page_no }],
+        headers: [{ ref: null, title: `Pages ${p.page_no}â€“${Math.min(p.page_no + PAGE_FALLBACK_SIZE - 1, lastPage)}`, page: p.page_no }],
         source: "page",
       });
     }
@@ -192,7 +192,7 @@ export function chunkBySection(pages: ParsedPage[]): SectionChunk[] {
 
   const starts = splitOversized(boundaries, lastPage);
   // Leading cover/TOC pages before the first heading belong to the first
-  // chunk — never dropped.
+  // chunk â€” never dropped.
   if (starts.length > 0 && starts[0].page > sorted[0].page_no) {
     starts[0] = { ...starts[0], page: sorted[0].page_no };
   }
@@ -274,7 +274,7 @@ export interface DocumentMap {
   submissionClauses: SubmissionClause[];
 }
 
-// Zone signals read headings/structure only — never bare "shall"/"must".
+// Zone signals read headings/structure only â€” never bare "shall"/"must".
 const ZONE_TITLE: { match: RegExp; zone: ChunkZone; reason: string }[] = [
   { match: /pric|commercial|schedule of (prices|rates)|price basis|compensation/i, zone: "commercial", reason: "pricing/commercial heading" },
   { match: /questionnaire|\bform\b|template|exhibit|checklist/i, zone: "forms", reason: "form/questionnaire heading" },
@@ -283,7 +283,7 @@ const ZONE_TITLE: { match: RegExp; zone: ChunkZone; reason: string }[] = [
 ];
 
 function classifyZone(chunk: SectionChunk): { zone: ChunkZone; reason: string } {
-  // Document preamble is narrative, never pricing — even when the cover page
+  // Document preamble is narrative, never pricing â€” even when the cover page
   // names the document type ("Technical & Commercial RFQ").
   if (/^(introduction|background|overview|preamble|executive summary)/i.test(chunk.title)) {
     return { zone: "contract-scope", reason: "document preamble narrative" };
@@ -311,14 +311,16 @@ const GLOBAL_PATTERNS: { rule: GlobalRuleKind; re: RegExp; notIf?: RegExp }[] = 
   { rule: "disqualification", re: /disqualif|fatal flaw|will not be considered|will not be evaluated|shall be rejected|will be rejected|grounds for (rejection|disqualification)|invalidat\w* (your|the) bid/i },
   { rule: "jv-partner", re: /joint venture|technical partner|consortium|sub-?contractor|\bJV\b/i },
   // "package" alone is usually software ("State the package and version"),
-  // not lot structure — excluded via notIf.
+  // not lot structure â€” excluded via notIf.
   { rule: "module-lot", re: /\bmodule\b|\blot\b|package [A-E]|scope group|\bpackage\b/i, notIf: /software package|package and version/i },
   { rule: "format-order", re: /no (changes?|alteration)( to| of)?|in separate (file|envelope)|separate (technical|commercial)|number of copies|original and \w+ cop/i },
   // Deadlines are often worded ("two weeks from receipt") without digits.
   // Expanded: bid validity, clarification cut-off, acknowledgement deadlines.
-  { rule: "key-date", re: /(submission|clarification|bid validity|acknowledg|acceptance)[^.]{0,120}?(\d|one|two|three|four|five|six|seven|eight|nine|ten)/i },
+  // Two alternatives: keyword+number in same sentence, OR "bid validity"+number anywhere on the page.
+  { rule: "key-date", re: /(submission|clarification|acknowledg|acceptance)[^.]{0,120}?(\d|one|two|three|four|five|six|seven|eight|nine|ten)|(bid validity)[^]{0,300}?(\d|one|two|three|four|five|six|seven|eight|nine|ten)/i },
   // Evaluation method: scoring weights, "will be evaluated", "preferential consideration", points systems.
-  { rule: "evaluation-method", re: /evaluation (criteria|method|weight)|scor(?:e|ing) (?:criteria|system|model)|weight(?:ed)? (?:criteria|factor)|points? system|preferential consideration|will be evaluated|technical compliance will be assessed|price will be evaluated|evaluated on/i },
+  // "Weighting"/"weighted"/"weights" catches "Category Weighting" evaluation tables.
+  { rule: "evaluation-method", re: /evaluation (criteria|method|weight)|scor(?:e|ing) (?:criteria|system|model)|weight(?:ing|ed|s)? (?:criteria|factor|category|technical|commercial)|points? system|preferential consideration|will be evaluated|technical compliance will be assessed|price will be evaluated|evaluated on/i },
 ];
 
 // Bid-stage submission clauses hiding inside scope/contract text.

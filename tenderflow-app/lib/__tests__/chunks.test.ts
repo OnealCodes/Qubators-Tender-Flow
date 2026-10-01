@@ -1,4 +1,4 @@
-// Phase 2a — chunker + document map. Pure functions only: no database,
+﻿// Phase 2a â€” chunker + document map. Pure functions only: no database,
 // no network, no live Gemini. Run: npm test.
 import { describe, expect, it } from "vitest";
 import {
@@ -202,5 +202,191 @@ describe("buildDocumentMap", () => {
     expect(refs.join(" ")).toMatch(/4\.2/);
     expect(refs.join(" ")).toMatch(/2\.4/); // flagged scope included
     expect(refs.join(" ")).not.toMatch(/Appendix/);
+  });
+});
+
+import { hasBidderSubjectSentence, bidChunkPlan } from "../chunks";
+
+// ---------------------------------------------------------------------------
+// Phase 2a-fix: bidder-subject sentence detection
+// ---------------------------------------------------------------------------
+
+describe("hasBidderSubjectSentence", () => {
+  it("flags 'Bidders shall price' sentences", () => {
+    expect(hasBidderSubjectSentence("Bidders shall price against the stated tender assumption.")).toBe(true);
+  });
+
+  it("flags 'Tenderers shall state' sentences", () => {
+    expect(hasBidderSubjectSentence("Tenderers shall state whether they propose to use a third party.")).toBe(true);
+  });
+
+  it("flags 'the tenderer shall' (with article)", () => {
+    expect(hasBidderSubjectSentence("The tenderer shall include a method statement.")).toBe(true);
+  });
+
+  it("flags 'to be submitted with the tender'", () => {
+    expect(hasBidderSubjectSentence("The following documents to be submitted with the tender.")).toBe(true);
+  });
+
+  it("flags 'shall be priced separately'", () => {
+    expect(hasBidderSubjectSentence("Optional items shall be priced separately and shall not be included in the base total.")).toBe(true);
+  });
+
+  it("does NOT flag 'Contractor shall' sentences", () => {
+    expect(hasBidderSubjectSentence("Contractor shall attend a project initiation meeting.")).toBe(false);
+  });
+
+  it("does NOT flag 'The Contractor shall' sentences", () => {
+    expect(hasBidderSubjectSentence("The Contractor shall establish an approved design basis.")).toBe(false);
+  });
+
+  it("does NOT flag 'Company shall' sentences", () => {
+    expect(hasBidderSubjectSentence("Company shall issue Work Permits on a case-by-case basis.")).toBe(false);
+  });
+
+  it("flags bidder-subject even when Contractor also appears later in text", () => {
+    const text = "Bidders shall price by scope group. Contractor shall perform the work in accordance with this scope.";
+    expect(hasBidderSubjectSentence(text)).toBe(true);
+  });
+
+  it("does not flag pure Contractor paragraphs", () => {
+    const text = "Contractor shall attend a project initiation meeting. Contractor shall establish an approved design basis.";
+    expect(hasBidderSubjectSentence(text)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2a-fix: evaluation-method global rule
+// ---------------------------------------------------------------------------
+
+describe("evaluation-method global rule", () => {
+  it("catches 'bids will be evaluated' phrasing", () => {
+    const t = pages("4.3 Evaluation Criteria Bids will be evaluated on technical and commercial criteria, scored separately.");
+    const m = buildDocumentMap(t, chunkBySection(t));
+    expect(m.globalRules.some((g) => g.rule === "evaluation-method")).toBe(true);
+  });
+
+  it("catches scoring weights", () => {
+    const t = pages("4.3 EVALUATION Category Weighting Technical method with Sections 2.9 carrying the greatest weight 40%");
+    const m = buildDocumentMap(t, chunkBySection(t));
+    expect(m.globalRules.some((g) => g.rule === "evaluation-method")).toBe(true);
+  });
+
+  it("catches 'preferential consideration'", () => {
+    const t = pages("3. BID EVALUATION Bidders with local content will receive preferential consideration during award.");
+    const m = buildDocumentMap(t, chunkBySection(t));
+    expect(m.globalRules.some((g) => g.rule === "evaluation-method")).toBe(true);
+  });
+
+  it("does not fire on pure abbreviation pages", () => {
+    const t = pages("1.5 Abbreviations API American Petroleum Institute CP Cathodic Protection VIV Vortex-Induced Vibration");
+    const m = buildDocumentMap(t, chunkBySection(t));
+    expect(m.globalRules.some((g) => g.rule === "evaluation-method")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2a-fix: key-date extended patterns
+// ---------------------------------------------------------------------------
+
+describe("key-date extended patterns", () => {
+  it("catches worded acceptance/clarification/submission deadlines", () => {
+    const t = pages("6. RFQ DATES Acceptance: one week from receipt. Clarifications: one week. Submission: two weeks.");
+    const m = buildDocumentMap(t, chunkBySection(t));
+    expect(m.globalRules.some((g) => g.rule === "key-date")).toBe(true);
+  });
+
+  it("catches 'bid validity' deadline with digit", () => {
+    const t = pages("4.6 Bid validity period. Bids shall remain valid for 90 days from the submission deadline.");
+    const m = buildDocumentMap(t, chunkBySection(t));
+    expect(m.globalRules.some((g) => g.rule === "key-date")).toBe(true);
+  });
+
+  it("catches clarification cut-off with a numeric date", () => {
+    const t = pages("5. DATES Clarification deadline: 05 July 2026. Submission deadline: 20 July 2026.");
+    const m = buildDocumentMap(t, chunkBySection(t));
+    expect(m.globalRules.filter((g) => g.rule === "key-date").length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2a-fix: bidChunkPlan explicit full/flagged split
+// ---------------------------------------------------------------------------
+
+describe("bidChunkPlan full/flagged split", () => {
+  const cLike = pages(
+    "1.0 INTRODUCTION This scope defines the engineering analysis required.",
+    "2.2 Stated Assumptions. They are stated here because tenderers shall price them deliberately.",
+    "4.1 Mandatory Bid Content Method statement. CVs of the named lead analyst. Schedule with critical path.",
+    "4.2 Pricing Schedule Bidders shall price by scope group. Optional items shall be priced separately.",
+    "Appendix 1 Load Case Matrix R O R O R O."
+  );
+  const cChunks = chunkBySection(cLike);
+  const cMap = buildDocumentMap(cLike, cChunks);
+  const plan = bidChunkPlan(cMap);
+
+  it("puts bid-instructions and commercial chunks in fullChunks", () => {
+    const fullRefs = plan.fullChunks.map((id) => cChunks.find((c) => c.id === id)!.ref ?? "");
+    expect(fullRefs.some((r) => /4\.1/.test(r))).toBe(true);
+    expect(fullRefs.some((r) => /4\.2/.test(r))).toBe(true);
+  });
+
+  it("puts flagged scope chunks in flaggedChunks, not fullChunks", () => {
+    const fullIds = new Set(plan.fullChunks);
+    expect(plan.flaggedChunks.length).toBeGreaterThan(0);
+    plan.flaggedChunks.forEach((id) => expect(fullIds.has(id)).toBe(false));
+  });
+
+  it("allChunkIds is union of full and flagged with no duplicates", () => {
+    const all = new Set(plan.allChunkIds);
+    expect(all.size).toBe(plan.allChunkIds.length);
+    plan.fullChunks.forEach((id) => expect(all.has(id)).toBe(true));
+    plan.flaggedChunks.forEach((id) => expect(all.has(id)).toBe(true));
+  });
+
+  it("appendix chunks without bid clauses stay local", () => {
+    const allSent = new Set(plan.allChunkIds);
+    const localAppendix = cChunks.filter((c) => {
+      const z = cMap.zones.find((zz) => zz.chunkId === c.id);
+      return z?.zone === "appendix" && !z.hasBidClause;
+    });
+    localAppendix.forEach((c) => expect(allSent.has(c.id)).toBe(false));
+  });
+
+  it("intro chunk without bid clause stays local", () => {
+    const allSent = new Set(plan.allChunkIds);
+    const intro = cChunks.find((c) => /INTRODUCTION/.test(c.title));
+    if (intro) expect(allSent.has(intro.id)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2a-fix: submission clause via bidder-subject in contract-scope
+// ---------------------------------------------------------------------------
+
+describe("submission clause via bidder-subject in contract-scope", () => {
+  it("flags a scope chunk with tenderers-shall-price clause", () => {
+    const t = pages(
+      "1.0 INTRODUCTION Scope defines the engineering required to qualify the conductor.",
+      "2.2 Stated Assumptions. They are stated here because tenderers shall price them deliberately.",
+      "4.1 Mandatory Bid Content Method statement. CVs. Schedule."
+    );
+    const c = chunkBySection(t);
+    const m = buildDocumentMap(t, c);
+    const flagged = m.zones.filter((z) => z.hasBidClause);
+    expect(flagged.length).toBeGreaterThan(0);
+    const flaggedChunk = c.find((x) => x.id === flagged[0].chunkId)!;
+    expect(flaggedChunk.ref).toBe("2.2");
+    expect(m.submissionClauses.some((s) => s.chunkId === flaggedChunk.id)).toBe(true);
+  });
+
+  it("does NOT flag a chunk whose sentences are all Contractor-subject", () => {
+    const t = pages(
+      "2.0 SCOPE Contractor shall attend the meeting. Contractor shall establish the design basis. Contractor shall analyse all four phases."
+    );
+    const c = chunkBySection(t);
+    const m = buildDocumentMap(t, c);
+    expect(m.zones.every((z) => !z.hasBidClause)).toBe(true);
+    expect(m.submissionClauses).toHaveLength(0);
   });
 });
