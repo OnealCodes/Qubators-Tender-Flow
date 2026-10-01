@@ -250,7 +250,8 @@ export type GlobalRuleKind =
   | "jv-partner"
   | "module-lot"
   | "format-order"
-  | "key-date";
+  | "key-date"
+  | "evaluation-method";
 
 export interface GlobalRule {
   rule: GlobalRuleKind;
@@ -314,11 +315,36 @@ const GLOBAL_PATTERNS: { rule: GlobalRuleKind; re: RegExp; notIf?: RegExp }[] = 
   { rule: "module-lot", re: /\bmodule\b|\blot\b|package [A-E]|scope group|\bpackage\b/i, notIf: /software package|package and version/i },
   { rule: "format-order", re: /no (changes?|alteration)( to| of)?|in separate (file|envelope)|separate (technical|commercial)|number of copies|original and \w+ cop/i },
   // Deadlines are often worded ("two weeks from receipt") without digits.
-  { rule: "key-date", re: /(submission|clarification|bid validity|acceptance)[^.]{0,120}?(\d|one|two|three|four|five|six|seven|eight|nine|ten)/i },
+  // Expanded: bid validity, clarification cut-off, acknowledgement deadlines.
+  { rule: "key-date", re: /(submission|clarification|bid validity|acknowledg|acceptance)[^.]{0,120}?(\d|one|two|three|four|five|six|seven|eight|nine|ten)/i },
+  // Evaluation method: scoring weights, "will be evaluated", "preferential consideration", points systems.
+  { rule: "evaluation-method", re: /evaluation (criteria|method|weight)|scor(?:e|ing) (?:criteria|system|model)|weight(?:ed)? (?:criteria|factor)|points? system|preferential consideration|will be evaluated|technical compliance will be assessed|price will be evaluated|evaluated on/i },
 ];
 
 // Bid-stage submission clauses hiding inside scope/contract text.
 const BID_CLAUSE_RE = /submitted as part of (this|the) tender|with (the|this|your) (tender|bid)|at (bid|tender) (submission|closing)|mandatory with the bid|before bid submission|with its quotation|submit .* with (the|this) bid/i;
+
+// Bidder/tenderer-addressed subject detection for contract-scope and appendix chunks.
+// Flags sentences whose grammatical subject is the bidder/tenderer (not "Contractor").
+// Patterns: "Bidders shall...", "Tenderers shall...", "The tenderer shall...", "You shall...",
+// "to be submitted with the tender", "shall be priced separately", "shall state whether..."
+// Excludes: "Contractor shall...", "Company shall...", "The Contractor...", "the Contractor..."
+const BIDDER_SUBJECT_RE =
+  /\b(?:bidders?|tenderers?|you)\b\s+(?:shall|must|should|will|are required to|are to)\b|\b(?:the\s+)?(?:bidder|tenderer)\s+(?:shall|must|should|will)\b|to be (?:submitted|provided|included|priced|stated) with (?:the|this) (?:tender|bid)|shall be (?:priced|submitted|included|provided) (?:separately|with the (?:tender|bid))/i;
+
+export function hasBidderSubjectSentence(text: string): boolean {
+  // Split into sentences (rough) and check each for bidder subject
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  for (const s of sentences) {
+    if (BIDDER_SUBJECT_RE.test(s)) {
+      // Ensure it's not a Contractor sentence
+      if (!/^(?:the\s+)?contractor\b/i.test(s.trim()) && !/^company\b/i.test(s.trim())) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 /**
  * Cheap deterministic map over pages + chunks: outline, per-chunk coarse
@@ -340,6 +366,10 @@ export function buildDocumentMap(pages: ParsedPage[], chunks: SectionChunk[]): D
   });
 
   // Submission-clause sweep over contract-scope / appendix chunks only.
+  // Uses both explicit submission phrases (BID_CLAUSE_RE) AND bidder-subject
+  // sentence detection (BIDDER_SUBJECT_RE) to catch passages like
+  // "Bidders shall price against the stated tender assumption" that don't
+  // contain the exact submission phrases.
   const submissionClauses: SubmissionClause[] = [];
   for (const z of zones) {
     if (z.zone !== "contract-scope" && z.zone !== "appendix") continue;
@@ -347,11 +377,31 @@ export function buildDocumentMap(pages: ParsedPage[], chunks: SectionChunk[]): D
     if (!chunk) continue;
     for (let n = chunk.startPage; n <= chunk.endPage; n++) {
       const text = pages.find((p) => p.page_no === n)?.text ?? "";
+      // 1. Explicit submission clauses
       BID_CLAUSE_RE.lastIndex = 0;
-      const m = BID_CLAUSE_RE.exec(text);
-      if (m) {
+      const m1 = BID_CLAUSE_RE.exec(text);
+      if (m1) {
         z.hasBidClause = true;
-        submissionClauses.push({ chunkId: z.chunkId, page: n, text: windowAround(text, m.index, m[0].length) });
+        submissionClauses.push({ chunkId: z.chunkId, page: n, text: windowAround(text, m1.index, m1[0].length) });
+        if (submissionClauses.length >= 200) break;
+      }
+      // 2. Bidder/tenderer-addressed sentences (subject is bidder, not Contractor)
+      if (!z.hasBidClause && hasBidderSubjectSentence(text)) {
+        // Find the first matching sentence for the snippet
+        const sentences = text.split(/(?<=[.!?])\s+/);
+        let bidderIdx = -1;
+        for (let i = 0; i < sentences.length; i++) {
+          if (BIDDER_SUBJECT_RE.test(sentences[i])) {
+            bidderIdx = text.indexOf(sentences[i]);
+            break;
+          }
+        }
+        z.hasBidClause = true;
+        submissionClauses.push({
+          chunkId: z.chunkId,
+          page: n,
+          text: bidderIdx >= 0 ? windowAround(text, bidderIdx, 80) : text.slice(0, 300),
+        });
         if (submissionClauses.length >= 200) break;
       }
     }
@@ -383,9 +433,32 @@ export function buildDocumentMap(pages: ParsedPage[], chunks: SectionChunk[]): D
   };
 }
 
-/** Chunks a later phase may send to Gemini: bid-stage zones + flagged scope. */
-export function bidChunkIds(map: DocumentMap): string[] {
-  return map.zones
-    .filter((z) => z.zone === "bid-instructions" || z.zone === "forms" || z.zone === "commercial" || z.hasBidClause)
+export interface BidChunkPlan {
+  /** Chunks sent in full: bid-instructions, forms, commercial */
+  fullChunks: string[];
+  /** Contract-scope / appendix chunks sent only as flagged passages with context */
+  flaggedChunks: string[];
+  /** All chunk IDs to send (union of above) */
+  allChunkIds: string[];
+}
+
+/** Explicit plan: which zones go in full, which only as flagged passages. */
+export function bidChunkPlan(map: DocumentMap): BidChunkPlan {
+  const fullZones = ["bid-instructions", "forms", "commercial"] as const;
+  const fullChunks = map.zones
+    .filter((z) => fullZones.includes(z.zone as typeof fullZones[number]))
     .map((z) => z.chunkId);
+  const flaggedChunks = map.zones
+    .filter((z) => z.hasBidClause && !fullZones.includes(z.zone as typeof fullZones[number]))
+    .map((z) => z.chunkId);
+  return {
+    fullChunks,
+    flaggedChunks,
+    allChunkIds: [...fullChunks, ...flaggedChunks],
+  };
+}
+
+/** Legacy helper: just the list of all chunk IDs to send. */
+export function bidChunkIds(map: DocumentMap): string[] {
+  return bidChunkPlan(map).allChunkIds;
 }
