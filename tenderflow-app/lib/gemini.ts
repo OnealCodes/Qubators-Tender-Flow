@@ -24,7 +24,16 @@ interface GeminiResponse {
 
 // Ask Gemini for STRICT JSON. Throws a safe error (never includes the key).
 // Falls back across models on 404/503: free-tier demand spikes are common.
-export async function geminiJson(systemPrompt: string, userPrompt: string, timeoutMs = 120000): Promise<{ data: unknown; model: string }> {
+// Phase 1: optional responseSchema (Gemini structured output). When supplied
+// it is sent as generationConfig.responseSchema; if the API rejects the
+// schema (400), the call is retried once WITHOUT it (current behaviour),
+// so existing callers are unaffected.
+export async function geminiJson(
+  systemPrompt: string,
+  userPrompt: string,
+  timeoutMs = 120000,
+  options?: { responseSchema?: unknown }
+): Promise<{ data: unknown; model: string }> {
   const { key, model } = geminiConfig();
   if (!isGeminiConfigured()) {
     throw new Error("Gemini API key is not configured. Add GEMINI_API_KEY to tenderflow-app\\.env (see .env.example).");
@@ -35,28 +44,42 @@ export async function geminiJson(systemPrompt: string, userPrompt: string, timeo
   const attempts: string[] = [];
   let lastError = "";
   for (const attempt of candidates) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(attempt)}:generateContent`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ parts: [{ text: userPrompt }] }],
-            generationConfig: { responseMimeType: "application/json", temperature: 0.1, maxOutputTokens: 8192 },
-          }),
-          signal: ctrl.signal,
+    // First try WITH the schema (when given), then fall back to plain JSON.
+    const schemaRounds: (unknown | undefined)[] = options?.responseSchema ? [options.responseSchema, undefined] : [undefined];
+    for (const schema of schemaRounds) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const generationConfig: Record<string, unknown> = {
+          responseMimeType: "application/json",
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        };
+        if (schema !== undefined) generationConfig.responseSchema = schema;
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(attempt)}:generateContent`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: systemPrompt }] },
+              contents: [{ parts: [{ text: userPrompt }] }],
+              generationConfig,
+            }),
+            signal: ctrl.signal,
+          }
+        );
+        clearTimeout(timer);
+        if (res.status === 404 || res.status === 503 || res.status === 429) {
+          lastError = `model ${attempt}: ${res.status}`;
+          attempts.push(`${attempt}:${res.status}`);
+          break; // try next model, not the schema fallback for rate/availability errors
         }
-      );
-      clearTimeout(timer);
-      if (res.status === 404 || res.status === 503 || res.status === 429) {
-        lastError = `model ${attempt}: ${res.status}`;
-        attempts.push(`${attempt}:${res.status}`);
-        continue;
-      }
+        if (res.status === 400 && schema !== undefined) {
+          // Schema rejected — fall through to the plain-JSON retry below.
+          attempts.push(`${attempt}:schema-400`);
+          continue;
+        }
       if (!res.ok) {
         const body = await res.text().catch(() => "");
         throw new Error(`Gemini API error ${res.status}: ${body.slice(0, 300)}`);
@@ -79,11 +102,13 @@ export async function geminiJson(systemPrompt: string, userPrompt: string, timeo
         } catch { /* try next form */ }
       }
       throw new Error("Gemini did not return valid JSON.");
-    } catch (e) {
-      clearTimeout(timer);
-      if (e instanceof Error && e.message.startsWith("Gemini")) throw e;
-      lastError = `model ${attempt}: ${e instanceof Error ? e.message : "network error"}`;
+      } catch (e) {
+        clearTimeout(timer);
+        if (e instanceof Error && e.message.startsWith("Gemini")) throw e;
+        lastError = `model ${attempt}: ${e instanceof Error ? e.message : "network error"}`;
+      }
     }
   }
+  void lastError;
   throw new Error(`Gemini unavailable (tried ${attempts.join(", ") || "none"}). Please retry shortly.`);
 }

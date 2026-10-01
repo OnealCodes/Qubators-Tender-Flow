@@ -27,6 +27,20 @@ export interface Requirement {
   source_span: string | null;
   edited: boolean;
   superseded: boolean;
+  // Phase 1 (v2 foundations): all optional/nullable so existing rows and
+  // callers keep working. Populated by backfill + v2 runs (Phase 2+).
+  submission_class?: string | null;
+  obligation?: string | null;
+  is_fatal_flaw?: boolean;
+  fatal_flaw_quote?: string | null;
+  applicability_condition?: string | null;
+  source_text?: string | null;
+  display_title?: string | null;
+  stable_key?: string | null;
+  context?: string | null;
+  confidence?: number | null;
+  needs_review?: boolean;
+  review_reason?: string | null;
 }
 
 export interface Deliverable {
@@ -37,6 +51,10 @@ export interface Deliverable {
   status: string;
   owner: string | null;
   due_date: string | null;
+  // Phase 1 (v2 foundations): optional so existing behaviour is unchanged.
+  detail_type?: string | null;
+  detail_value?: unknown;
+  source_text?: string | null;
 }
 
 export interface RunDiff {
@@ -54,6 +72,20 @@ function rid(p: string): string {
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 80);
+}
+
+// Phase 1: stable match key — ref | section | START of normalised source.
+// Same rule as db/011-model.sql backfill: each part lowercased,
+// non-alphanumerics to spaces, collapsed; source cut to its first 80 chars,
+// whole key capped at 120. Deliberately EXCLUDES submission_class and any
+// full-text hash so the key survives AI reclassification + small edits.
+export function stableKeyFor(ref: string | null, section: string | null, sourceText: string | null): string {
+  const normPart = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  const r = normPart(ref ?? "");
+  const s = normPart(section ?? "");
+  const t = normPart(sourceText ?? "").slice(0, 80);
+  return `${r}|${s}|${t}`.slice(0, 120);
 }
 
 // ---------- pure merge: human edits win ----------
@@ -185,6 +217,18 @@ function toReq(row: Record<string, unknown>): Requirement {
     source_page: row.source_page == null ? null : Number(row.source_page),
     source_span: (row.source_span as string) ?? null,
     edited: Boolean(row.edited), superseded: Boolean(row.superseded),
+    submission_class: (row.submission_class as string) ?? null,
+    obligation: (row.obligation as string) ?? null,
+    is_fatal_flaw: Boolean(row.is_fatal_flaw ?? false),
+    fatal_flaw_quote: (row.fatal_flaw_quote as string) ?? null,
+    applicability_condition: (row.applicability_condition as string) ?? null,
+    source_text: (row.source_text as string) ?? null,
+    display_title: (row.display_title as string) ?? null,
+    stable_key: (row.stable_key as string) ?? null,
+    context: (row.context as string) ?? null,
+    confidence: row.confidence == null ? null : Number(row.confidence),
+    needs_review: Boolean(row.needs_review ?? false),
+    review_reason: (row.review_reason as string) ?? null,
   };
 }
 
@@ -193,6 +237,9 @@ function toDeliv(row: Record<string, unknown>): Deliverable {
     id: String(row.id), requirement_id: String(row.requirement_id), title: String(row.title ?? ""),
     expected_detail: (row.expected_detail as string) ?? null, status: String(row.status ?? "outstanding"),
     owner: (row.owner as string) ?? null, due_date: (row.due_date as string) ?? null,
+    detail_type: (row.detail_type as string) ?? null,
+    detail_value: (row.detail_value as unknown) ?? null,
+    source_text: (row.source_text as string) ?? null,
   };
 }
 
