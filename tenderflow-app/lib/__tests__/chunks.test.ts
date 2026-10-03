@@ -1,4 +1,4 @@
-﻿// Phase 2a â€” chunker + document map. Pure functions only: no database,
+// Phase 2a — chunker + document map. Pure functions only: no database,
 // no network, no live Gemini. Run: npm test.
 import { describe, expect, it } from "vitest";
 import {
