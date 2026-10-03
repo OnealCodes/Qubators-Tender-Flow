@@ -1,0 +1,17 @@
+# TenderFlow Netlify configuration.
+#
+# Repository layout is monorepo-style: documentation lives at the repo root
+# and the Next.js application lives in tenderflow-app/. Netlify therefore
+# builds from the application subdirectory. A base directory set here in
+# netlify.toml overrides any Base directory configured in the Netlify UI,
+# so an invalid UI value can never break configuration parsing again.
+# Note: the base is always a repository-relative path, never an absolute
+# build-machine path.
+[build]
+  base = "tenderflow-app"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # Next.js 16 requires Node >= 20.9; pin the Netlify toolchain to Node 20.
+  NODE_VERSION = "20"
