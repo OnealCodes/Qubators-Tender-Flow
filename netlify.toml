@@ -15,3 +15,10 @@
 [build.environment]
   # Next.js 16 requires Node >= 20.9; pin the Netlify toolchain to Node 20.
   NODE_VERSION = "20"
+
+# Next.js Runtime (SSR, API routes, middleware): Netlify installs this
+# build plugin automatically because it is declared here but not vendored
+# in package.json. Without it the site deploys as plain static files and
+# every route except public/ assets 404s.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
