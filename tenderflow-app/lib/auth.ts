@@ -17,6 +17,11 @@ async function userCount(): Promise<number> {
   }
 }
 
+// Production base URL: explicit BETTER_AUTH_URL wins, then the hosting
+// platform's own URL (Netlify provides URL automatically), then local dev.
+const rawBase = process.env.BETTER_AUTH_URL ?? process.env.URL ?? "http://localhost:3000";
+const baseURL = rawBase.replace(/\/+$/, "");
+
 export const auth = betterAuth({
   database: pgAuthAdapter,
   emailAndPassword: {
@@ -57,8 +62,8 @@ export const auth = betterAuth({
     },
   },
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  trustedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
+  baseURL,
+  trustedOrigins: [baseURL, "http://localhost:3000", "http://127.0.0.1:3000"],
   plugins: [nextCookies()],
 });
 
