@@ -464,3 +464,74 @@ export function bidChunkPlan(map: DocumentMap): BidChunkPlan {
 export function bidChunkIds(map: DocumentMap): string[] {
   return bidChunkPlan(map).allChunkIds;
 }
+
+// ---------- chunk context (Phase 2c foundations, deterministic, no AI) ----------
+
+/** Max outline entries rendered into a chunk context (counts capped, never content). */
+export const CONTEXT_MAX_OUTLINE = 150;
+/** Max global-rule quotes rendered into a chunk context. */
+export const CONTEXT_MAX_RULES = 60;
+
+const RULE_ORDER: GlobalRuleKind[] = [
+  "disqualification",
+  "jv-partner",
+  "module-lot",
+  "format-order",
+  "key-date",
+  "evaluation-method",
+];
+
+/**
+ * Render the deterministic first pass for one chunk: header outline with
+ * pages, whole-tender global rules (disqualification, JV/partner,
+ * applicability-adjacent rules), this chunk's flagged passages, then the
+ * chunk's FULL text with overlap. Later phases prepend this to every Gemini
+ * chunk prompt so the model always sees tender-wide rules + structure.
+ * Pure and deterministic — same inputs always yield the same string.
+ */
+export function buildChunkContext(map: DocumentMap, chunk: SectionChunk): string {
+  const lines: string[] = [];
+  const zone = map.zones.find((z) => z.chunkId === chunk.id);
+  lines.push("=== DOCUMENT MAP (deterministic first pass) ===");
+  lines.push(
+    `Tender: ${map.pageCount} pages, ${map.chunkCount} chunks. ` +
+      `This chunk: ${chunk.id} "${chunk.title}"` +
+      `${chunk.ref ? ` (ref ${chunk.ref})` : ""}` +
+      `, pages ${chunk.startPage}-${chunk.endPage}` +
+      `, zone ${zone?.zone ?? "unknown"}${zone?.hasBidClause ? " (has bid-stage passages)" : ""}.`
+  );
+  lines.push("--- Header outline (ref, title, page) ---");
+  const shown = map.outline.slice(0, CONTEXT_MAX_OUTLINE);
+  for (const o of shown) {
+    const mark = o.chunkId === chunk.id ? " <= THIS CHUNK" : "";
+    lines.push(`[${o.ref ?? "-"}] ${o.title} (p.${o.page})${mark}`);
+  }
+  if (map.outline.length > shown.length) {
+    lines.push(`... (${map.outline.length - shown.length} more outline entries omitted)`);
+  }
+  lines.push("--- Global rules (whole tender, with pages) ---");
+  if (map.globalRules.length === 0) {
+    lines.push("(none found)");
+  } else {
+    const ordered = [...map.globalRules].sort(
+      (a, b) => RULE_ORDER.indexOf(a.rule) - RULE_ORDER.indexOf(b.rule) || a.page - b.page
+    );
+    const rulesShown = ordered.slice(0, CONTEXT_MAX_RULES);
+    for (const g of rulesShown) {
+      lines.push(`[${g.rule}] p.${g.page}: ${g.text}`);
+    }
+    if (ordered.length > rulesShown.length) {
+      lines.push(`... (${ordered.length - rulesShown.length} more global rules omitted)`);
+    }
+  }
+  const flagged = map.submissionClauses.filter((s) => s.chunkId === chunk.id);
+  if (flagged.length > 0) {
+    lines.push("--- Flagged bid-stage passages in this chunk ---");
+    for (const s of flagged) {
+      lines.push(`(p.${s.page}) ${s.text}`);
+    }
+  }
+  lines.push("--- This chunk (full text with overlap) ---");
+  lines.push(chunk.textWithOverlap);
+  return lines.join("\n");
+}
