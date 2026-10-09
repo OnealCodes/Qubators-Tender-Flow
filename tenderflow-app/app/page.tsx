@@ -1,4 +1,5 @@
 import Link from "next/link";
+import InstallPrompt from "../components/install-prompt";
 
 const STEPS = [
   {
@@ -47,8 +48,9 @@ export default function LandingPage() {
           <div className="text-lg font-extrabold text-[#0A2C4E]">
             Tender<span className="text-[#F5B301]">Flow</span>
           </div>
-          <nav className="ml-auto flex items-center gap-2 text-sm font-semibold">
+          <nav className="ml-auto flex flex-wrap items-center gap-2 text-sm font-semibold">
             <Link href="/workspace" className="rounded-lg px-3 py-2 text-[#0A2C4E] hover:bg-[#EEF1F4]">Workspace</Link>
+            <InstallPrompt compact />
             <Link href="/upload" className="rounded-lg bg-[#1D4C8D] px-4 py-2.5 font-bold text-white hover:bg-[#14365F]">
               Upload your Tender
             </Link>

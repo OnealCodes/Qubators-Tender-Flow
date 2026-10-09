@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { authClient, useSession } from "../lib/auth-client";
 import { tender } from "../lib/demo-data";
 import { emitSearch } from "./ui";
+import InstallPrompt from "./install-prompt";
 
 function UserMenu() {
   const router = useRouter();
@@ -106,13 +107,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[#E2E8F0] bg-white px-5 py-3">
-          <div className="flex max-w-[460px] flex-1 items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2">
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-[#E2E8F0] bg-white px-5 py-3">
+          <div className="flex max-w-[460px] min-w-0 flex-1 basis-48 items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2">
             <span aria-hidden="true">⌕</span>
-            <input value={q} onChange={(e) => { setQ(e.target.value); emitSearch(e.target.value); }} type="search" placeholder="Search requirements, documents, owners…" aria-label="Search requirements" className="flex-1 border-0 text-sm outline-none" />
+            <input value={q} onChange={(e) => { setQ(e.target.value); emitSearch(e.target.value); }} type="search" placeholder="Search requirements, documents, owners…" aria-label="Search requirements" className="min-w-0 flex-1 border-0 text-sm outline-none" />
           </div>
           <Link href="/checklist" className="rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm font-bold text-[#0A2C4E]">Final review</Link>
           <Link href="/upload" className="rounded-lg bg-[#1D4C8D] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#14365F]" title="Upload a new ITT package">+ Upload tender</Link>
+          <InstallPrompt />
           <div className="ml-auto hidden text-[13px] text-[#5B6472] lg:block">Submission in <strong className="text-[#DC2626]">{tender.countdown}</strong> · {tender.submission}</div>
           <UserMenu />
         </div>
